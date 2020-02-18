@@ -114,9 +114,29 @@ const TYPE_MAPPINGS = Dict{DataType, Symbol}( # Julia => SQLite
   Bool       => :BOOLEAN
 )
 
-function create_table(mapper::DBMapper, T::DataType; if_not_exists::Bool=true)
-    table = mapper.tables[T]
 
+
+
+function __init__()
+    @require SQlite="c91e804a-d5a3-530f-b6f0-dfbca275c004" begin
+        database_type(c::SQLite) = Relational
+    end
+end
+end
+
+struct Relational end
+struct NonRelational end
+
+function create_table(mapper::DBMapper, T::DataType; if_not_exists::Bool=true)
+    if !haskey(mapper.tables, T)
+        throw("a")
+    end
+    conn = get_connection(mapper.pool)
+    create_table(conn, database_type(conn), elem)
+    release_connection(mapper.pool, con)
+end
+function create_table(mapper::DBMapper, ::Type{Relational}, T::DataType; if_not_exists::Bool=true)
+    table = mapper.tables[T]
     create_table_fields = []
     for field in table.fields
         if field.type <: ForeignKey
@@ -133,17 +153,6 @@ function create_table(mapper::DBMapper, T::DataType; if_not_exists::Bool=true)
     sql = strip("""CREATE TABLE $if_not_exists_str $(table.name) ($create_table_fields)""")
     return sql
 end
-
-
-function __init__()
-    @require SQlite="c91e804a-d5a3-530f-b6f0-dfbca275c004" begin
-        database_type(c::SQLite) = Relational
-    end
-end
-end
-
-struct Relational end
-struct NonRelational end
 
 function insert!(mapper::DBMapper, elem::T) where T
     if !haskey(mapper.tables, T)

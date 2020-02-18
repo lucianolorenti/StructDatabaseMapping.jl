@@ -63,7 +63,7 @@ function test_register()
     @test field.primary_key == true
     @test field.type == Float64
 
-    mapper = DBMapper()
+    mapper = DBMapper(_->SQLite("a"))
     register!(mapper, Author)
     register!(mapper, Book)
 
@@ -76,7 +76,7 @@ function test_register()
     @test create_table(mapper, Book) == "CREATE TABLE IF NOT EXISTS book (id VARCHAR PRIMARY KEY, author INTEGER  NOT NULL)"
 
     author = Author(name="pirulo")
-    println(insert!(mapper, author))
+    insert!(mapper, author)
 end
 
 function test_create_table()
