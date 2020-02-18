@@ -1,0 +1,20 @@
+# This file is machine-generated - editing it directly is not advised
+
+[[Dates]]
+deps = ["Printf"]
+uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
+
+[[Printf]]
+deps = ["Unicode"]
+uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[[Pukeko]]
+deps = ["Printf"]
+git-tree-sha1 = "2c566fdb662d4e5e7f2adced26fc90a94727c64f"
+repo-rev = "master"
+repo-url = "https://github.com/IainNZ/Pukeko.jl.git"
+uuid = "8cf91db1-0219-5b69-b551-5a0ff3c32cce"
+version = "0.2.0+"
+
+[[Unicode]]
+uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
