@@ -134,10 +134,27 @@ function create_table(mapper::DBMapper, T::DataType; if_not_exists::Bool=true)
     return sql
 end
 
+
+function __init__()
+    @require SQlite="c91e804a-d5a3-530f-b6f0-dfbca275c004" begin
+        database_type(c::SQLite) = Relational
+    end
+end
+end
+
+struct Relational end
+struct NonRelational end
+
 function insert!(mapper::DBMapper, elem::T) where T
     if !haskey(mapper.tables, T)
         throw("a")
     end
+    conn = get_connection(mapper.pool)
+    insert!(conn, database_type(conn), elem)
+    release_connection(mapper.pool, con)
+end
+
+function insert!(conn, ::Type{Relational}, elem::T) where T
     table = mapper.tables[T]
     column_names = join(map(x->x.name, table.fields), ",")
     values_placeholder = join(repeat(['?'], length(table.fields)), ",")
