@@ -1,6 +1,6 @@
 include("Queue.jl")
 
-abstract type Pool end
+abstract type ConnectionPool end
 
 function Base.open(f::Function, r::Connection)
     conn = get_connection!(r)
@@ -11,14 +11,21 @@ function Base.open(f::Function, r::Connection)
     end
 end
 
-get_connection(r::Pool) = throw(NotImplementedError())
-release_connection(r::Pool, opened_connection) = throw(NotImplementedError())
+get_connection(r::ConnectionPool) = throw(NotImplementedError())
+release_connection(r::ConnectionPool, opened_connection) = throw(NotImplementedError())
 
-struct SimplePool <: Pool
+struct SimplePool <: ConnectionPool
     creator::Function
+    dbtype::DataType
+    function SimplePool(creator::Function)
+        conn = creator()
+        dbtype = typeof(conn)
+        close!(conn)
+        return new(creator, dbtype)
+    end
 end
-get_connection(r::Pool) =  r.creator()
-release_connection(r::Pool, conn) =  close(conn)
+get_connection(r::SimplePool) = r.creator()
+release_connection(r::SimplePool, conn) =  close!(conn)
 
 
 """A :class:`.Pool` that imposes a limit on the number of open connections.
@@ -26,7 +33,7 @@ release_connection(r::Pool, conn) =  close(conn)
     all :class:`.Engine` objects, unless the SQLite dialect is in use.
     """
 
-struct QueuePool <: Pool
+struct QueuePool <: ConnectionPool
     creator::Function
     _pool::Queue
     overflow::Integer

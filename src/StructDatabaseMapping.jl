@@ -1,37 +1,51 @@
 module StructDatabaseMapping
-export DBMapper, register!, process,
-    create_table, DBId, Nullable,
-    analyze_relations, ForeignKey
+export DBMapper, register!, process,  create_table, DBId, 
+       Nullable, analyze_relations, ForeignKey, select_one
 using Dates
+using Requires
+
 import Base.insert!
-@enum RELATION_TYPE  ONE_TO_MANY=1 ONE_TO_ONE=2
+
+abstract type Connection end
+abstract type DatabaseType end
 
 include("Pool.jl")
 
-abstract type Connection end
 
+
+
+@enum RELATION_TYPE  ONE_TO_MANY=1 ONE_TO_ONE=2
 
 abstract type AbstractNullable{T} end
 
-struct Nullable{T} <: AbstractNullable{T}
+mutable struct Nullable{T} <: AbstractNullable{T}
     x::T
 end
-struct DBId{T} <: AbstractNullable{T}
+mutable struct DBId{T} <: AbstractNullable{T}
     x::Union{T,Nothing}
 end
 function DBId{T}() where T
     return DBId{T}(nothing)
 end
 
+function Base.convert(::Type{DBId{T}}, x::J) where J<:T where T
+    return DBId{T}(x)
+end
+
+function Base.convert(::Type{DBId{T}}, x::Nothing) where T
+    return DBId{T}(nothing)
+end
+
 element_type(data::Type{<:AbstractNullable{T}}) where T = T
 has_value(data::T) where T<:AbstractNullable = !isnothing(data.x)
-
+set!(data::T, elem::J) where T<:AbstractNullable{J} where J = data.x = elem
 struct ForeignKey{T} <: AbstractNullable{T}
     data::Array{T}
 end
 
 mutable struct Field
     name::Symbol
+    struct_field::Symbol
     type::Type
     nullable::Bool
     primary_key::Bool
@@ -47,7 +61,7 @@ function Field(name::Symbol, type::Type)
         type = element_type(type)
         nullable = true
     end
-    return Field(name, type, nullable, primary_key)
+    return Field(name, name, type, nullable, primary_key)
 end
 
 
@@ -68,7 +82,9 @@ end
 mutable struct DBMapper
     tables::Dict{DataType, Table}
     pool::ConnectionPool
-    DBMapper(database_builder::Function) = new(Dict{DataType,Table}(), SimplePool(database_builder))
+    function DBMapper(database_builder::Function) 
+        return new(Dict{DataType,Table}(), SimplePool(database_builder))
+    end
 end
 
 function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T
@@ -102,75 +118,69 @@ function analyze_relations(mapper::DBMapper)
 
 end
 
-const TYPE_MAPPINGS = Dict{DataType, Symbol}( # Julia => SQLite
-  Char       => :CHARACTER,
-  String     => :VARCHAR,
-  Integer    => :INTEGER,
-  Int        => :INTEGER,
-  Float64    => :FLOAT,
-  DateTime   => :DATETIME,
-  Time       => :TIME,
-  Date       => :DATE,
-  Bool       => :BOOLEAN
-)
+
+function column_names(mapper, T::DataType) :: Array
+    table = mapper.tables[T]
+    return map(field->field.name, table.fields)
+end
+
+function struct_field_values(mapper, elem::T; ignore_primary_key::Bool=true) where T
+    table = mapper.tables[T]
+    column_names = []
+    values = []
+    for field in table.fields
+        if (field.primary_key) && ignore_primary_key
+            continue
+        end
+        field_value = getfield(elem, field.struct_field)
+        if (field.nullable == true) && !has_value(field_value) 
+            continue
+        end
+        push!(column_names, field.name)
+        push!(values, normalize(mapper.pool.dbtype, getfield(elem, field.struct_field)))
+    end
+    return (column_names, values)
+end
 
 
 
+struct NonRelational <: DatabaseType end
 
-function __init__()
-    @require SQlite="c91e804a-d5a3-530f-b6f0-dfbca275c004" begin
-        database_type(c::SQLite) = Relational
+function check_valid_type(mapper::DBMapper, T::DataType)
+    if !haskey(mapper.tables, T)
+        throw("Invalid type")
     end
 end
-end
-
-struct Relational end
-struct NonRelational end
 
 function create_table(mapper::DBMapper, T::DataType; if_not_exists::Bool=true)
-    if !haskey(mapper.tables, T)
-        throw("a")
-    end
-    conn = get_connection(mapper.pool)
-    create_table(conn, database_type(conn), elem)
-    release_connection(mapper.pool, con)
-end
-function create_table(mapper::DBMapper, ::Type{Relational}, T::DataType; if_not_exists::Bool=true)
-    table = mapper.tables[T]
-    create_table_fields = []
-    for field in table.fields
-        if field.type <: ForeignKey
-            db_field_type  = string(TYPE_MAPPINGS[Integer])
-        else
-            db_field_type  = string(TYPE_MAPPINGS[field.type])
-        end
-        primary_key = field.primary_key ? "PRIMARY KEY" : ""
-        nullable = field.nullable ? "" : "NOT NULL"
-        push!(create_table_fields, strip("$(field.name) $db_field_type $primary_key $nullable"))
-    end
-    create_table_fields = join(create_table_fields, ", ")
-    if_not_exists_str = if_not_exists ? "IF NOT EXISTS" : ""
-    sql = strip("""CREATE TABLE $if_not_exists_str $(table.name) ($create_table_fields)""")
-    return sql
+    check_valid_type(mapper, T)
+    create_table(mapper, database_type(mapper.pool.dbtype), T)    
 end
 
 function insert!(mapper::DBMapper, elem::T) where T
-    if !haskey(mapper.tables, T)
-        throw("a")
-    end
-    conn = get_connection(mapper.pool)
-    insert!(conn, database_type(conn), elem)
-    release_connection(mapper.pool, con)
+    check_valid_type(mapper, T)
+    insert!(mapper, database_type(mapper.pool.dbtype), elem)
 end
 
-function insert!(conn, ::Type{Relational}, elem::T) where T
-    table = mapper.tables[T]
-    column_names = join(map(x->x.name, table.fields), ",")
-    values_placeholder = join(repeat(['?'], length(table.fields)), ",")
-    sql = """
-INSERT INTO $(table.name) ($column_names)
-VALUES ($values_placeholder)
-    """
-    return sql
+function select_one(mapper::DBMapper, T::DataType; kwargs...) 
+    check_valid_type(mapper, T)
+    select_one(mapper, database_type(mapper.pool.dbtype), T; kwargs...)
 end
+
+
+database_type(c::Type{T}) where T = throw("Unknow database type")
+
+function __init__()
+    @require DBInterface="a10d1c49-ce27-4219-8d33-6db1a4562965" begin
+        @require SQLite="0aa819cd-b072-5ff4-a722-6bc24af294d9" begin
+            fn = joinpath(@__DIR__,  "Relational.jl")
+            include(fn)
+            database_type(c::Type{SQLite.DB}) = Relational
+            close!(db::SQLite.DB) = DBInterface.close!(db)
+            
+        end        
+    end
+    
+end
+
 end # module

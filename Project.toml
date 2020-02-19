@@ -4,5 +4,7 @@ authors = ["Luciano Rolando Lorenti <lucianolorenti@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Pukeko = "8cf91db1-0219-5b69-b551-5a0ff3c32cce"
+Requires = "ae029012-a4dd-5104-9daa-d747884805df"
