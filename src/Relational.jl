@@ -1,30 +1,24 @@
-
+using .DBInterface
 struct Relational <: DatabaseType end
 
-const TYPE_MAPPINGS = Dict{DataType, Symbol}( # Julia => SQLite
-  Char       => :CHARACTER,
-  String     => :VARCHAR,
-  Integer    => :INTEGER,
-  Int        => :INTEGER,
-  Float64    => :FLOAT,
-  DateTime   => :DATETIME,
-  Time       => :TIME,
-  Date       => :DATE,
-  Bool       => :BOOLEAN
-)
 
-create_table_field(field::Field, table::Table, dbtype::DataType) = create_table_field(field, table)
-function create_table_field(field::Field, table::Table)
+primary_key_type(dbtype::DataType, x) = x
+function create_table_field(field::Field, table::Table, dbtype::DataType) 
     field_name = "$(field.name)"
     if field.type <: ForeignKey
-        db_field_type  = string(TYPE_MAPPINGS[Integer])
+        db_field_type  = string(database_column_type(dbtype, Integer))
+    elseif field.type <: DBId 
+        pk_type = primary_key_type(dbtype, element_type(field.type))
+        db_type = database_column_type(dbtype, pk_type)
+        db_field_type  = string(db_type)
     else
-        db_field_type  = string(TYPE_MAPPINGS[field.type])
+        db_field_type  = string(database_column_type(dbtype, element_type(field.type)))
     end
     primary_key = isprimarykey(field, table) ? "PRIMARY KEY" : ""
     nullable = field.nullable ? "" : "NOT NULL"
     return strip("$field_name $db_field_type $primary_key $nullable")
 end
+
 function create_table_query(mapper::DBMapper, T::DataType; if_not_exists::Bool=true) :: String
     table = mapper.tables[T]
     create_table_fields = []

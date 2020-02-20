@@ -39,7 +39,7 @@ function DBId{T}() where T
 end
 
 
-
+element_type(x::DataType) = x
 element_type(data::Type{<:AbstractNullable{T}}) where T = T
 has_value(data::T) where T<:AbstractNullable = !isnothing(data.x)
 set!(data::T, elem::J) where T<:AbstractNullable{J} where J = data.x = elem
@@ -72,7 +72,6 @@ function Field(name::Symbol, type::Type)
         db_field_name = Symbol(string(db_field_name) * "_id")
     elseif type <: AbstractNullable
         nullable = true
-        type = element_type(type)
     end
     
     return Field(db_field_name, name, type, nullable, primary_key)
@@ -221,19 +220,20 @@ end
 
 database_type(c::Type{T}) where T = throw("Unknow database type")
 
+
 function __init__()
-    @require DBInterface="a10d1c49-ce27-4219-8d33-6db1a4562965" begin
-        fn = joinpath(@__DIR__,  "Relational.jl")
-        include(fn)
-        @require SQLite="0aa819cd-b072-5ff4-a722-6bc24af294d9" begin
-            fn = joinpath(@__DIR__,  "SQLite.jl")
-            include(fn)
-        end        
-        @require LibPQ="194296ae-ab2e-5f79-8cd4-7183a0a5a0d1" begin
-            fn = joinpath(@__DIR__,  "PostgreSQL.jl")
-            include(fn)
-        end
+  
+    @require DBInterface="a10d1c49-ce27-4219-8d33-6db1a4562965" begin       
+        include(joinpath(@__DIR__,  "Relational.jl"))  
     end
+    @require SQLite="0aa819cd-b072-5ff4-a722-6bc24af294d9" begin
+        include(joinpath(@__DIR__,  "SQLite.jl"))        
+        
+    end        
+    @require LibPQ="194296ae-ab2e-5f79-8cd4-7183a0a5a0d1" begin 
+        include(joinpath(@__DIR__,  "PostgreSQL.jl"))
+    end
+    
     
 end
 

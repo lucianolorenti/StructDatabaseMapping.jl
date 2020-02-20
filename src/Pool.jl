@@ -1,7 +1,7 @@
 include("Queue.jl")
 
 abstract type ConnectionPool end
-
+function close!(conn) end
 function Base.open(f::Function, r::Connection)
     conn = get_connection!(r)
     try
@@ -20,6 +20,7 @@ struct SimplePool <: ConnectionPool
     function SimplePool(creator::Function)
         conn = creator()
         dbtype = typeof(conn)
+        println(dbtype)
         close!(conn)
         return new(creator, dbtype)
     end

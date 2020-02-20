@@ -1,10 +1,5 @@
 # This file is machine-generated - editing it directly is not advised
 
-[[DBInterface]]
-git-tree-sha1 = "8687a1cc640f088ea2b9c4573b16739ba3917175"
-uuid = "a10d1c49-ce27-4219-8d33-6db1a4562965"
-version = "2.0.0"
-
 [[Dates]]
 deps = ["Printf"]
 uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
