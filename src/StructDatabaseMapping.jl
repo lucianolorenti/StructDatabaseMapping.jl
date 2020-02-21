@@ -87,11 +87,17 @@ end
 Key(f::Field; primary::Bool=false, auto_value::Bool=false) = Key([f], auto_value, primary)
 
 
+struct Relation
+    referenced_table::String
+    referenced_field::Symbol
+    local_field::Symbol 
+end
+
 mutable struct Table
     name::String
     data_type
     fields::Array{Field}
-    relations::Dict{DataType, Any}
+    relations::Dict{Field, Relation}
     primary_key::Key
 end
 
@@ -102,8 +108,9 @@ isprimarykey(f::Field, t::Table) = t.primary_key.field[1] === f
 mutable struct DBMapper
     tables::Dict{DataType, Table}
     pool::ConnectionPool
+    dirty::Bool
     function DBMapper(database_builder::Function) 
-        return new(Dict{DataType,Table}(), SimplePool(database_builder))
+        return new(Dict{DataType,Table}(), SimplePool(database_builder), false)
     end
 end
 
@@ -115,6 +122,7 @@ function Base.get(v::ForeignKey{T}, mapper::DBMapper) where T
     return v.data
 end
 function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T
+    mapper.dirty = true
     if table_name == ""
         table_name = String(split(lowercase(string(T)), ".")[end])
     end
@@ -131,31 +139,24 @@ function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T
     table = Table(table_name,
                   T,
                   fields,
-                  Dict{DataType, Any}(),
+                  Dict{Field, Relation}(),
                   primary_key)
     mapper.tables[T] =  table
 end
-
 function analyze_relations(mapper::DBMapper)
-    #=
     for table in values(mapper.tables)
-        for field in table.fields
-            field_type = field.type
-            if field_type <: Array
-                field_type = eltype(field_type)
-            end
-            if haskey(mapper.tables, field_type) && !haskey(table.relations, field_type)
-                r = Relation(ONE_TO_MANY, table, mapper.tables[field_type])
-                table.relations[field_type] = r
-                mapper.tables[field_type].relations[table.data_type] = r
+        for field in table
+            if field.type <: ForeignKey
+                referenced_table = mapper.tables[element_type(field.type)]
+                referenced_field = referenced_table.primary_key.field[1]
+                table[field] = Relation(referenced_table.name,
+                                        referenced_field.name,
+                                        field.name)
             end
         end
     end
-    =#
+    mapper.dirty = false
 end
-
-
-
 function column_names(mapper, T::DataType) :: Array
     table = mapper.tables[T]
     return map(field->field.name, table.fields)
@@ -190,6 +191,9 @@ function check_valid_type(mapper::DBMapper, T::DataType)
     if !haskey(mapper.tables, T)
         throw("Invalid type")
     end
+    if mapper.dirty == true 
+        analyze_relations(mapper)
+    end
 end
 
 function create_table(mapper::DBMapper, T::DataType; if_not_exists::Bool=true)
@@ -221,6 +225,10 @@ end
 database_kind(c::Type{T}) where T = throw("Unknow database kind")
 
 
+
+function configure_relation(mapper::DBMapper, T::Type, field; on_delete=true)
+    table  = mapper.tables[T]
+end
 
 function __init__()
   

@@ -21,26 +21,19 @@ function create_table_field(mapper::DBMapper, field::Field, table::Table, dbtype
     return strip("$field_name $db_field_type $primary_key $nullable")
 end
 
-struct Relation
-    referenced_table::String
-    referenced_field::Symbol
-    local_field::Symbol 
-end
+
 function create_table_query(mapper::DBMapper, T::DataType; if_not_exists::Bool=true) :: String
     table = mapper.tables[T]
     create_table_fields = []
-    relations = []
     for field in table.fields        
         push!(create_table_fields, 
               create_table_field(mapper, field, table, mapper.pool.dbtype))
-        if field.type <: ForeignKey
-            referenced_table = mapper.tables[element_type(field.type)]
-            referenced_field = referenced_table.primary_key.field[1]
-            push!(relations,  Relation(referenced_table.name,
-                                       referenced_field.name,
-                                       field.name))
-        end
     end
+    
+    foreign_keys = ["FOREIGN KEY($(r.local_field)) REFERENCES $(r.referenced_table)($(r.referenced_field))" 
+                    for r in values(table.relations)]
+    append!(create_table_fields, foreign_keys)
+    
     create_table_fields = join(create_table_fields, ", ")
     if_not_exists_str = if_not_exists ? "IF NOT EXISTS" : ""
     return String(strip("""CREATE TABLE $if_not_exists_str $(table.name) ($create_table_fields)"""))

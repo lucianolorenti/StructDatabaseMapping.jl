@@ -1,11 +1,11 @@
-module TestSQLite
+module TestRedis
 using Pukeko  # @test, @test_throws
-using SQLite
+using Redis
 using StructDatabaseMapping
 using Dates
 
 
-DB_FILE = "test_db"
+DB_NUMBER = 500
 struct Author
     id::DBId{Integer}
     name::String
@@ -32,23 +32,13 @@ function cleanup()
     end
 end
 function test_sqlite()
-    mapper = DBMapper(()->SQLite.DB(DB_FILE))
+    mapper = DBMapper(()->Redis.RedisConnection(db=DB_NUMBER))
 
     register!(mapper, Author)
     register!(mapper, Book)
     
     @test haskey(mapper.tables, Author)
     @test haskey(mapper.tables, Book)
-
-    @test (StructDatabaseMapping.create_table_query(mapper, Author) 
-         == "CREATE TABLE IF NOT EXISTS author (id INTEGER PRIMARY KEY, name VARCHAR  NOT NULL, date DATETIME  NOT NULL)")
-
-    @test (StructDatabaseMapping.create_table_query(mapper, Book) 
-          == "CREATE TABLE IF NOT EXISTS book (id VARCHAR PRIMARY KEY, author_id INTEGER  NOT NULL, FOREIGN KEY(author_id) REFERENCES author(id))")
-
-    create_table(mapper, Author)
-    configure_relation(mapper, Book, Book.author, on_delete=CASCADE)
-    create_table(mapper, Book)
 
     author = Author(name="pirulo")
     insert!(mapper, author)

@@ -27,6 +27,8 @@ function Book(;id::Union{String, Nothing}=nothing,
 end
 
 function cleanup()
+    conn = LibPQ.Connection("host=localhost user=luciano dbname=sdm_test")
+    execute(conn, "DROP DATABASE sdm_test")
 end
 function test_postgres()
     mapper = DBMapper(()->LibPQ.Connection("host=localhost user=luciano dbname=sdm_test"))
@@ -41,7 +43,7 @@ function test_postgres()
          == "CREATE TABLE IF NOT EXISTS author (id SERIAL PRIMARY KEY, name VARCHAR  NOT NULL, date TIMESTAMP  NOT NULL)")
 
     @test (StructDatabaseMapping.create_table_query(mapper, Book) 
-          == "CREATE TABLE IF NOT EXISTS book (id VARCHAR PRIMARY KEY, author_id INTEGER  NOT NULL)")
+          == "CREATE TABLE IF NOT EXISTS book (id VARCHAR PRIMARY KEY, author_id INTEGER  NOT NULL, FOREIGN KEY(author_id) REFERENCES author(id))")
 
     create_table(mapper, Author)
     create_table(mapper, Book)
@@ -68,12 +70,12 @@ function test_postgres()
     @test get(a.author, mapper).name == "pirulo"
 
     
-
-    clean_table!(mapper, Author)
     clean_table!(mapper, Book)
-
-    drop_table!(mapper, Author)
+    clean_table!(mapper, Author)
+    
     drop_table!(mapper, Book)
+    drop_table!(mapper, Author)
+    
 
 
 end
