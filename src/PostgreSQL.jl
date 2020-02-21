@@ -31,8 +31,10 @@ end
 function clean_table_query(table::Table, dbtype::Type{LibPQ.Connection}) 
     return "DELETE FROM $(table.name)"
 end
-database_type(c::Type{LibPQ.Connection}) = Relational
+database_kind(c::Type{LibPQ.Connection}) = Relational
 close!(db::LibPQ.Connection) = DBInterface.close!(db)
+escape_value(dbtype::Type{LibPQ.Connection}, x::AbstractString) = "'$x'"
+
 
 DBInterface.close!(db::LibPQ.Connection) = LibPQ.close(db)
 DBInterface.execute(db::LibPQ.Connection, sql::AbstractString) = LibPQ.execute(db, sql)
@@ -56,7 +58,5 @@ function DBInterface.prepare(db::LibPQ.Connection, sql::AbstractString)
     return LibPQ.prepare(db, s)
 end
 DBInterface.execute(stmt::LibPQ.Statement, params::Array{Any,1}) = LibPQ.execute(stmt, params)
-function DBInterface.lastrowid(r::LibPQ.Result)
-    println(LibPQ.result(collect(r)[1]))
-    return 5
-end
+DBInterface.lastrowid(r::LibPQ.Result) =  r[1,1]
+Base.getindex(row::LibPQ.Row, symbol::Symbol) = getproperty(row, symbol)

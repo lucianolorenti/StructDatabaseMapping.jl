@@ -123,7 +123,7 @@ function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T
     for (field_name, field_type) in zip(fieldnames(d), fieldtypes(d))
         db_field = Field(field_name, field_type)
         if field_type <: DBId
-            primary_key = Key(db_field; primary=true, auto_value=db_field.type <: Integer)
+            primary_key = Key(db_field; primary=true, auto_value=element_type(db_field.type) <: Integer)
         end
         push!(fields, db_field)
     end
@@ -194,31 +194,32 @@ end
 
 function create_table(mapper::DBMapper, T::DataType; if_not_exists::Bool=true)
     check_valid_type(mapper, T)
-    create_table(mapper, database_type(mapper.pool.dbtype), T)    
+    create_table(mapper, database_kind(mapper.pool.dbtype), T)    
 end
 
 function insert!(mapper::DBMapper, elem::T) where T
     check_valid_type(mapper, T)
-    insert!(mapper, database_type(mapper.pool.dbtype), elem)
+    insert!(mapper, database_kind(mapper.pool.dbtype), elem)
 end
 
 function select_one(mapper::DBMapper, T::DataType; kwargs...) 
     check_valid_type(mapper, T)
-    select_one(mapper, database_type(mapper.pool.dbtype), T; kwargs...)
+    select_one(mapper, database_kind(mapper.pool.dbtype), T; kwargs...)
 end
 
 function clean_table!(mapper::DBMapper, T::DataType)
     check_valid_type(mapper, T)
-    clean_table!(mapper, database_type(mapper.pool.dbtype), T)
+    clean_table!(mapper, database_kind(mapper.pool.dbtype), T)
 end
 
 
 function drop_table!(mapper::DBMapper, T::DataType)
     check_valid_type(mapper, T)
-    drop_table!(mapper, database_type(mapper.pool.dbtype), T)
+    drop_table!(mapper, database_kind(mapper.pool.dbtype), T)
 end
 
-database_type(c::Type{T}) where T = throw("Unknow database type")
+database_kind(c::Type{T}) where T = throw("Unknow database kind")
+
 
 
 function __init__()
@@ -232,6 +233,9 @@ function __init__()
     end        
     @require LibPQ="194296ae-ab2e-5f79-8cd4-7183a0a5a0d1" begin 
         include(joinpath(@__DIR__,  "PostgreSQL.jl"))
+    end
+    @require Redis="194296ae-ab2e-5f79-8cd4-7183a0a5a0d1" begin 
+        include(joinpath(@__DIR__,  "Redis.jl"))
     end
     
     

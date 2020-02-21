@@ -3,10 +3,12 @@ struct Relational <: DatabaseType end
 
 
 primary_key_type(dbtype::DataType, x) = x
-function create_table_field(field::Field, table::Table, dbtype::DataType) 
+function create_table_field(mapper::DBMapper, field::Field, table::Table, dbtype::DataType) 
     field_name = "$(field.name)"
     if field.type <: ForeignKey
-        db_field_type  = string(database_column_type(dbtype, Integer))
+        referenced_table = mapper.tables[element_type(field.type)]
+        referenced_field = referenced_table.primary_key.field[1]
+        db_field_type  = string(database_column_type(dbtype, element_type(referenced_field.type)))
     elseif field.type <: DBId 
         pk_type = primary_key_type(dbtype, element_type(field.type))
         db_type = database_column_type(dbtype, pk_type)
@@ -19,11 +21,25 @@ function create_table_field(field::Field, table::Table, dbtype::DataType)
     return strip("$field_name $db_field_type $primary_key $nullable")
 end
 
+struct Relation
+    referenced_table::String
+    referenced_field::Symbol
+    local_field::Symbol 
+end
 function create_table_query(mapper::DBMapper, T::DataType; if_not_exists::Bool=true) :: String
     table = mapper.tables[T]
     create_table_fields = []
+    relations = []
     for field in table.fields        
-        push!(create_table_fields, create_table_field(field, table, mapper.pool.dbtype))
+        push!(create_table_fields, 
+              create_table_field(mapper, field, table, mapper.pool.dbtype))
+        if field.type <: ForeignKey
+            referenced_table = mapper.tables[element_type(field.type)]
+            referenced_field = referenced_table.primary_key.field[1]
+            push!(relations,  Relation(referenced_table.name,
+                                       referenced_field.name,
+                                       field.name))
+        end
     end
     create_table_fields = join(create_table_fields, ", ")
     if_not_exists_str = if_not_exists ? "IF NOT EXISTS" : ""
@@ -101,13 +117,14 @@ function totuple(table::Table, dbtype::DataType, db_results) :: Array{Array{Pair
     return results
 end
 
-escape_value(x) = x
-escape_value(x::AbstractString) = "\"$x\""
+escape_value(dbtype::DataType, x) = x
+escape_value(dbtype::DataType, x::AbstractString) = "\"$x\""
 
-function select_one(mapper::DBMapper, dbtype::Type{Relational}, T::Type; kwargs...) 
+function select_one(mapper::DBMapper, ::Type{Relational}, T::Type; kwargs...) 
+    dbtype = mapper.pool.dbtype
     table = mapper.tables[T]
     cnames = join(column_names(mapper, T), ", ")
-    conditions = join(["$field=$(escape_value(value))" for (field,value) in kwargs], " ")
+    conditions = join(["$field=$(escape_value(dbtype, value))" for (field,value) in kwargs], " ")
     sql = """
     SELECT  $cnames
     FROM $(table.name)
@@ -116,7 +133,7 @@ function select_one(mapper::DBMapper, dbtype::Type{Relational}, T::Type; kwargs.
     """
     @info sql
     conn = get_connection(mapper.pool)
-    result = totuple(table, mapper.pool.dbtype, DBInterface.execute(conn, sql))
+    result = totuple(table, dbtype, DBInterface.execute(conn, sql))
     release_connection(mapper.pool, conn)
     if isempty(result)
         return nothing

@@ -24,5 +24,5 @@ end
 function clean_table_query(table::Table, dbtype::Type{SQLite.DB}) 
     return "DELETE FROM $(table.name)"
 end
-database_type(c::Type{SQLite.DB}) = Relational
+database_kind(c::Type{SQLite.DB}) = Relational
 close!(db::SQLite.DB) = DBInterface.close!(db)
