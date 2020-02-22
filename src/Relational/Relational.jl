@@ -81,7 +81,7 @@ function insert!(mapper::DBMapper, dbtype::Type{Relational}, elem::T) where T
     id = DBInterface.lastrowid(result)
     release_connection(mapper.pool, conn)
     if table.primary_key.has_auto_value
-        set!(elem.id, id)
+        set_id!(elem, mapper, id)
     end
     return elem
 end

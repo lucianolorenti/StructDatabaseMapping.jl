@@ -5,8 +5,8 @@ using StructDatabaseMapping
 using Dates
 
 
-DB_NUMBER = 500
-struct Author
+DB_NUMBER = 0
+struct Author <: Model
     id::DBId{Integer}
     name::String
     date::DateTime
@@ -16,7 +16,7 @@ function Author(;id::Union{Integer, Nothing} = nothing,
                 date::DateTime=now())
     return Author(id, name, date)
 end
-struct Book
+struct Book <: Model
     id::DBId{String}
     author::ForeignKey{Author}
 end
@@ -31,7 +31,7 @@ function cleanup()
     catch
     end
 end
-function test_sqlite()
+function test_redis()
     mapper = DBMapper(()->Redis.RedisConnection(db=DB_NUMBER))
 
     register!(mapper, Author)

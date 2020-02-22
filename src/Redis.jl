@@ -1,1 +1,0 @@
-database_kind(c::Type{Redis.RedisConnection}) = NonRelational
