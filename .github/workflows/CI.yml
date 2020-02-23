@@ -48,9 +48,9 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/julia-buildpkg@latest
-      env:
-        POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
       - uses: julia-actions/julia-runtest@latest
+          env:
+            POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
 
 
 
