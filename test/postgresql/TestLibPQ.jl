@@ -37,7 +37,7 @@ function test_postgres()
     db_name = get(ENV, "POSTGRES_DB", "sdm_test")
     user = get(ENV, "POSTGRES_USER", "luciano")
     password = get(ENV, "POSTGRES_PASSWORD", "")
-    conn_str = "host=$host port=$port user=$user dbname=$dbname" 
+    conn_str = "host=$host port=$port user=$user dbname=$db_name" 
     conn_str = conn_str * (length(password) > 0 : " password=$password" : "" )
     @info conn_str
     mapper = DBMapper(()->LibPQ.Connection(conn_str))
