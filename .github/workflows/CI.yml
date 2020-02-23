@@ -14,7 +14,7 @@ jobs:
       postgres:        
         image: postgres
         ports:          
-          - 5432/tcp
+          - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
       matrix:
@@ -30,7 +30,7 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       POSTGRES_HOST: localhost
-      POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
+      POSTGRES_PORT: 5432
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres    
