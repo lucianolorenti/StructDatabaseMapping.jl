@@ -37,7 +37,7 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       POSTGRES_HOST: localhost
-      POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
+      
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres    
@@ -48,6 +48,8 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
       - uses: julia-actions/julia-buildpkg@latest
+      env:
+        POSTGRES_PORT: ${{ job.services.postgres.ports[5432] }}
       - uses: julia-actions/julia-runtest@latest
 
 
