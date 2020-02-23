@@ -7,7 +7,7 @@ using Dates
 
 
 DB_FILE = "test_db"
-struct Author
+struct Author <: Model
     id::DBId{Integer}
     name::String
     date::DateTime
@@ -17,7 +17,7 @@ function Author(;id::Union{Integer, Nothing} = nothing,
                 date::DateTime=now())
     return Author(id, name, date)
 end
-struct Book
+struct Book <: Model
     id::DBId{String}
     author::ForeignKey{Author}
 end

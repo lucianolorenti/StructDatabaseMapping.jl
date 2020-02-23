@@ -1,7 +1,7 @@
 module StructDatabaseMapping
 export DBMapper, register!, process,  create_table, DBId, 
        Nullable, analyze_relations, ForeignKey, select_one,
-       clean_table!, drop_table!, Model
+       clean_table!, drop_table!, Model, getid
 using Dates
 using Requires
 
@@ -46,16 +46,14 @@ set!(data::T, elem::J) where T<:AbstractNullable{J} where J = data.x = elem
 
 mutable struct ForeignKey{T} <: AbstractNullable{T}
     data::Union{T, Nothing}
-    key_value
+    loaded::Bool
 end
-ForeignKey{T}(;value::Union{T, Nothing}=nothing, key_value=nothing) where T <: Model = ForeignKey{T}(value, key_value)
-function ForeignKey{T}(x::T) where T <: Model
-    return ForeignKey{T}(;value=x)
+function ForeignKey{T}(;data::Union{T,Nothing}=nothing, loaded::Bool=false) where T<:Model
+    return ForeignKey{T}(data, loaded)
 end
-function ForeignKey{T}(x) where T <: Model
-    return ForeignKey{T}(;key_value=x)
+function ForeignKey{T}(data::Union{T,Nothing}) where T<:Model
+    return ForeignKey{T}(data, true)
 end
-
 
 mutable struct Field
     name::Symbol
@@ -126,15 +124,18 @@ function setid!(elem::T, mapper::DBMapper, id)  where T<:Model
     id_field = getfield(elem, idfield(mapper, T))
     set!(id_field, id)
 end
-function idtype(elem::T, mapper::DBMapper) where T<:Model
-    id_field = getfield(elem, idfield(mapper, T))
-    return element_type(typeof(id_field))
+idfieldtype(::Type{T}, mapper::DBMapper) where T<:Model =  fieldtype(T, idfield(mapper, T))
+function idtype(::Type{T}, mapper::DBMapper) where T<:Model
+    id_field_type = fieldtype(T, idfield(mapper, T))
+    return element_type(id_field_type)
 end
 function Base.get(v::ForeignKey{T}, mapper::DBMapper) where T
-    if !isnothing(v.data)
+    if v.loaded
         return v.data
     end
-    v.data = select_one(mapper, T, id=v.key_value)
+    params = Dict{Symbol, Any}(idfield(mapper, T)=>getid(v.data, mapper))
+    v.data = select_one(mapper, T;params...)
+    v.loaded = true
     return v.data
 end
 function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T
@@ -201,15 +202,6 @@ end
 
 
 
-struct NonRelational <: DatabaseType end
-
-
-insert!(mapper::DBMapper, ::Type{NonRelational}, val) = insert!(mapper, mapper.pool.dbtype, val)
-function select_one(mapper::DBMapper, ::Type{NonRelational}, T::DataType; kwargs...)
-     return select_one(mapper, mapper.pool.dbtype, T; kwargs...)
-end
-
-
 
 function check_valid_type(mapper::DBMapper, T::DataType)
     if !haskey(mapper.tables, T)
@@ -232,7 +224,7 @@ end
 
 function select_one(mapper::DBMapper, T::DataType; kwargs...) 
     check_valid_type(mapper, T)
-    select_one(mapper, database_kind(mapper.pool.dbtype), T; kwargs...)
+    return select_one(mapper, database_kind(mapper.pool.dbtype), T; kwargs...)
 end
 
 function clean_table!(mapper::DBMapper, T::DataType)

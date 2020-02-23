@@ -1,3 +1,17 @@
+struct NonRelational <: DatabaseType end
+
+
+insert!(mapper::DBMapper, ::Type{NonRelational}, val) = insert!(mapper, mapper.pool.dbtype, val)
+function select_one(mapper::DBMapper, ::Type{NonRelational}, T::DataType; kwargs...)
+    return select_one(mapper, mapper.pool.dbtype, T; kwargs...)
+end
+function clean_table!(mapper::DBMapper,  ::Type{NonRelational}, T::DataType)
+    clean_table!(mapper, mapper.pool.dbtype, T)
+end
+function drop_table!(mapper::DBMapper, ::Type{NonRelational}, T::DataType)
+     drop_table!(mapper, mapper.pool.dbtype, T)
+end
+
 
 function generate_id(d, ::Type{Integer}) :: UInt64
     fields = vcat(string(typeof(d)),
@@ -20,6 +34,8 @@ marshal(d::DateTime) = string(d)
 #marshal(d) = d
 marshal(d::Number) = d
 marshal(d::DBId{T}) where T = marshal(d.x)
+marshal(mapper::DBMapper, d::ForeignKey{T}) where T  = getid(d.data, mapper)
+    
 
 function marshal(mapper::DBMapper, elemid::String, comps::Array)
     for (i, component) in enumerate(comps)
@@ -51,7 +67,14 @@ unmarshal(d::Type{Integer}, b::String) = parse(Int64, b)
 unmarshal(d::Type{Dict{K,V}}, b::String) where K where V = JSON.read(b)
 unmarshal(d::Type{String}, b::String) = b
 unmarshal(::Type{Dates.DateTime}, x::String) = DateTime(x)
-unmarshal(::Type{DBId{T}}, x::String) where T = parse(UInt64, x)
+unmarshal(::Type{DBId{T}}, x::String) where T<:Integer = parse(UInt64, x)
+unmarshal(::Type{DBId{T}}, x::String) where T<:AbstractString = x
+function unmarshal(mapper::DBMapper, ::Type{ForeignKey{T}}, x::String) where T<:Model
+    id_field_name = idfield(mapper, T)
+    params = Dict{Symbol, Any}(id_field_name=>unmarshal(mapper, idfieldtype(T, mapper), x))
+    return ForeignKey{T}(data=T(;params...), loaded=false)
+end
+
 function unmarshal(mapper::DBMapper, DT::Type, d::AbstractDict)
     out = Dict{Symbol, Any}()
     for iter in fieldnames(DT)

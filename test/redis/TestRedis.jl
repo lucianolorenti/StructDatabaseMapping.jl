@@ -57,8 +57,7 @@ function test_redis()
     a = select_one(mapper, Book, id="bbb")
     @test isnothing(a)
     a = select_one(mapper, Book, id="super_string_id")
-    
-    @test a.id.x == "super_string_id"
+    @test getid(a, mapper) == "super_string_id"
     @test get(a.author, mapper).name == "pirulo"
 
     

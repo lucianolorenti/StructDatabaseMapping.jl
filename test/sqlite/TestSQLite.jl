@@ -6,7 +6,7 @@ using Dates
 
 
 DB_FILE = "test_db"
-struct Author
+struct Author <: Model
     id::DBId{Integer}
     name::String
     date::DateTime
@@ -16,7 +16,7 @@ function Author(;id::Union{Integer, Nothing} = nothing,
                 date::DateTime=now())
     return Author(id, name, date)
 end
-struct Book
+struct Book <: Model
     id::DBId{String}
     author::ForeignKey{Author}
 end
@@ -47,7 +47,6 @@ function test_sqlite()
           == "CREATE TABLE IF NOT EXISTS book (id VARCHAR PRIMARY KEY, author_id INTEGER  NOT NULL, FOREIGN KEY(author_id) REFERENCES author(id))")
 
     create_table(mapper, Author)
-    configure_relation(mapper, Book, Book.author, on_delete=CASCADE)
     create_table(mapper, Book)
 
     author = Author(name="pirulo")
