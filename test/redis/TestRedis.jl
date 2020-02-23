@@ -32,6 +32,8 @@ function cleanup()
     end
 end
 function test_redis()
+    @info get(ENV, "REDIS_HOST", "localhost")
+    @info get(ENV, "REDIS_PORT", 6379)
     mapper = DBMapper(()->Redis.RedisConnection(
         host=get(ENV, "REDIS_HOST", "localhost"),
         db=DB_NUMBER,
