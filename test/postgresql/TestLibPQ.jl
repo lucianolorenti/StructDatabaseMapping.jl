@@ -26,7 +26,7 @@ function Book(;id::Union{String, Nothing}=nothing,
     return Book(id, author)
 end
 host = get(ENV, "POSTGRES_HOST", "localhost")
-port = get(ENV, "POSTGRES_PORT", 5432)
+port = get(ENV, "INPUT_POSTGRES_PORT", 5432)
 db_name = get(ENV, "POSTGRES_DB", "sdm_test")
 user = get(ENV, "POSTGRES_USER", "luciano")
 password = get(ENV, "POSTGRES_PASSWORD", "")
