@@ -8,7 +8,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     services:
       redis:
-        image: redis
+        image: redis            
+      postgres:        
+        image: postgres
     strategy:
       matrix:
         version:
@@ -22,6 +24,11 @@ jobs:
     env:
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: 'postgres'
+      POSTGRES_USER: 'postgres'
+      POSTGRES_PASSWORD: 'postgres'          
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1

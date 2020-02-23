@@ -31,7 +31,16 @@ function cleanup()
     execute(conn, "DROP DATABASE sdm_test")
 end
 function test_postgres()
-    mapper = DBMapper(()->LibPQ.Connection("host=localhost user=luciano dbname=sdm_test"))
+
+    host = get(ENV, "POSTGRES_HOST", "localhost")
+    port = get(ENV, "POSTGRES_PORT", 5432)
+    db_name = get(ENV, "POSTGRES_DB", "sdm_test")
+    user = get(ENV, "POSTGRES_USER", "luciano")
+    password = get(ENV, "POSTGRES_PASSWORD", "")
+    conn_str = "host=$host port=$port user=$user dbname=$dbname" 
+    conn_str = conn_str * (length(password) > 0 : " password=$password" : "" )
+    @info conn_str
+    mapper = DBMapper(()->LibPQ.Connection(conn_str))
 
     register!(mapper, Author)
     register!(mapper, Book)
