@@ -1,3 +1,5 @@
+[![Coverage Status](https://coveralls.io/repos/github/lucianolorenti/StructDatabaseMapper/badge.svg?branch=lucianolorenti-CI)](https://coveralls.io/github/lucianolorenti/StructDatabaseMapper?branch=lucianolorenti-CI)
+
 # Installation
 ```julia
 ] add https://github.com/lucianolorenti/StructDatabaseMapper.git
