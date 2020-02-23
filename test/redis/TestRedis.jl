@@ -37,7 +37,7 @@ function test_redis()
     mapper = DBMapper(()->Redis.RedisConnection(
         host=get(ENV, "REDIS_HOST", "localhost"),
         db=DB_NUMBER,
-        port=get(ENV, "REDIS_PORT", 6379)))
+        port=parse(get(ENV, "REDIS_PORT", 6379), Integer)))
 
     register!(mapper, Author)
     register!(mapper, Book)
