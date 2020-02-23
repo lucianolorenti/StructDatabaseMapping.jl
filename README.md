@@ -2,7 +2,7 @@
 
 # Installation
 ```julia
-] add https://github.com/lucianolorenti/StructDatabaseMapping.git
+] add https://github.com/lucianolorenti/StructDatabaseMapping.jl.git
 ```
 
 # Compatibility
