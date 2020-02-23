@@ -25,20 +25,20 @@ function Book(;id::Union{String, Nothing}=nothing,
                author::ForeignKey{Author}=ForeignKey{Author}())
     return Book(id, author)
 end
-
+host = get(ENV, "POSTGRES_HOST", "localhost")
+port = get(ENV, "POSTGRES_PORT", 5432)
+db_name = get(ENV, "POSTGRES_DB", "sdm_test")
+user = get(ENV, "POSTGRES_USER", "luciano")
+password = get(ENV, "POSTGRES_PASSWORD", "")
+conn_str = "host=$host port=$port user=$user dbname=$db_name" 
+conn_str = conn_str * (length(password) > 0 ? " password=$password" : "" )
 function cleanup()
-    conn = LibPQ.Connection("host=localhost user=luciano dbname=sdm_test")
+    conn = LibPQ.Connection(conn_str)
     execute(conn, "DROP DATABASE sdm_test")
 end
 function test_postgres()
 
-    host = get(ENV, "POSTGRES_HOST", "localhost")
-    port = get(ENV, "POSTGRES_PORT", 5432)
-    db_name = get(ENV, "POSTGRES_DB", "sdm_test")
-    user = get(ENV, "POSTGRES_USER", "luciano")
-    password = get(ENV, "POSTGRES_PASSWORD", "")
-    conn_str = "host=$host port=$port user=$user dbname=$db_name" 
-    conn_str = conn_str * (length(password) > 0 : " password=$password" : "" )
+
     @info conn_str
     mapper = DBMapper(()->LibPQ.Connection(conn_str))
 
