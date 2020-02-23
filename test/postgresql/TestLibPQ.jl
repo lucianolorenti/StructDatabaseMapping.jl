@@ -1,6 +1,6 @@
 
 module TestLibPQ
-using Pukeko  # @test, @test_throws
+using Test 
 using LibPQ
 using StructDatabaseMapping
 using Dates
@@ -35,6 +35,10 @@ conn_str = conn_str * (length(password) > 0 ? " password=$password" : "" )
 function cleanup()
     conn = LibPQ.Connection(conn_str)
     execute(conn, "DROP DATABASE sdm_test")
+end
+
+function test()
+    test_postgres()
 end
 function test_postgres()
 

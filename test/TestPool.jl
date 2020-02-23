@@ -1,5 +1,4 @@
 module TestPool
-using Pukeko  # @test, @test_throws
 using StructDatabaseMapping
 const Pool = StructDatabaseMapping.QueuePool
 struct TestConnection

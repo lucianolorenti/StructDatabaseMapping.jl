@@ -1,5 +1,5 @@
 module TestMapper
-using Pukeko
+using Test
 using StructDatabaseMapping
 function test_field()
     field = StructDatabaseMapping.Field(:name, Nullable{String})

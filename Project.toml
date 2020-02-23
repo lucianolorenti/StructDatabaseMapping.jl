@@ -1,7 +1,7 @@
 name = "StructDatabaseMapping"
 uuid = "66daddfc-c305-4fd9-8f84-fb59daccc546"
 authors = ["Luciano Rolando Lorenti <lucianolorenti@gmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -13,7 +13,7 @@ Requires = "1"
 
 
 [extras]
-Pukeko = "8cf91db1-0219-5b69-b551-5a0ff3c32cce"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Pukeko"]
+test = ["Test"]

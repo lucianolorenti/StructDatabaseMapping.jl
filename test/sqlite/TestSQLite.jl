@@ -1,5 +1,5 @@
 module TestSQLite
-using Pukeko  # @test, @test_throws
+using Test  
 using SQLite
 using StructDatabaseMapping
 using Dates
@@ -24,7 +24,9 @@ function Book(;id::Union{String, Nothing}=nothing,
                author::ForeignKey{Author}=ForeignKey{Author}())
     return Book(id, author)
 end
-
+function test()
+    test_sqlite()
+end
 function cleanup()
     try
         rm(DB_FILE)
