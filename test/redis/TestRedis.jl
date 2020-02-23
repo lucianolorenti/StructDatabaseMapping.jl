@@ -1,12 +1,11 @@
-
-module TestLibPQ
+module TestRedis
 using Pukeko  # @test, @test_throws
-using LibPQ
+using Redis
 using StructDatabaseMapping
 using Dates
 
 
-DB_FILE = "test_db"
+DB_NUMBER = 0
 struct Author <: Model
     id::DBId{Integer}
     name::String
@@ -27,26 +26,19 @@ function Book(;id::Union{String, Nothing}=nothing,
 end
 
 function cleanup()
-    conn = LibPQ.Connection("host=localhost user=luciano dbname=sdm_test")
-    execute(conn, "DROP DATABASE sdm_test")
+    try
+        rm(DB_FILE)
+    catch
+    end
 end
-function test_postgres()
-    mapper = DBMapper(()->LibPQ.Connection("host=localhost user=luciano dbname=sdm_test"))
+function test_redis()
+    mapper = DBMapper(()->Redis.RedisConnection(db=DB_NUMBER))
 
     register!(mapper, Author)
     register!(mapper, Book)
     
     @test haskey(mapper.tables, Author)
     @test haskey(mapper.tables, Book)
-
-    @test (StructDatabaseMapping.create_table_query(mapper, Author) 
-         == "CREATE TABLE IF NOT EXISTS author (id SERIAL PRIMARY KEY, name VARCHAR  NOT NULL, date TIMESTAMP  NOT NULL)")
-
-    @test (StructDatabaseMapping.create_table_query(mapper, Book) 
-          == "CREATE TABLE IF NOT EXISTS book (id VARCHAR PRIMARY KEY, author_id INTEGER  NOT NULL, FOREIGN KEY(author_id) REFERENCES author(id))")
-
-    create_table(mapper, Author)
-    create_table(mapper, Book)
 
     author = Author(name="pirulo")
     insert!(mapper, author)
@@ -65,17 +57,16 @@ function test_postgres()
     a = select_one(mapper, Book, id="bbb")
     @test isnothing(a)
     a = select_one(mapper, Book, id="super_string_id")
-    
-    @test a.id.x == "super_string_id"
+    @test getid(a, mapper) == "super_string_id"
     @test get(a.author, mapper).name == "pirulo"
 
     
-    clean_table!(mapper, Book)
+
     clean_table!(mapper, Author)
-    
-    drop_table!(mapper, Book)
+    clean_table!(mapper, Book)
+
     drop_table!(mapper, Author)
-    
+    drop_table!(mapper, Book)
 
 
 end

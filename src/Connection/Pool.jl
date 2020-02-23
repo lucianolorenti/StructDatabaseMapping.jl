@@ -20,7 +20,6 @@ struct SimplePool <: ConnectionPool
     function SimplePool(creator::Function)
         conn = creator()
         dbtype = typeof(conn)
-        println(dbtype)
         close!(conn)
         return new(creator, dbtype)
     end

@@ -1,7 +1,7 @@
 module StructDatabaseMapping
 export DBMapper, register!, process,  create_table, DBId, 
        Nullable, analyze_relations, ForeignKey, select_one,
-       clean_table!, drop_table!
+       clean_table!, drop_table!, Model, getid
 using Dates
 using Requires
 
@@ -10,10 +10,10 @@ import Base.insert!
 abstract type Connection end
 abstract type DatabaseType end
 
-include("Pool.jl")
+include("Connection/Pool.jl")
 
 
-
+abstract type Model end
 
 @enum RELATION_TYPE  ONE_TO_MANY=1 ONE_TO_ONE=2
 
@@ -45,17 +45,15 @@ has_value(data::T) where T<:AbstractNullable = !isnothing(data.x)
 set!(data::T, elem::J) where T<:AbstractNullable{J} where J = data.x = elem
 
 mutable struct ForeignKey{T} <: AbstractNullable{T}
-    data::Union{T,Nothing}
-    key_value
+    data::Union{T, Nothing}
+    loaded::Bool
 end
-ForeignKey{T}(;value::Union{T, Nothing}=nothing, key_value=nothing) where T = ForeignKey{T}(value, key_value)
-function ForeignKey{T}(x::T) where T
-    return ForeignKey{T}(;value=x)
+function ForeignKey{T}(;data::Union{T,Nothing}=nothing, loaded::Bool=false) where T<:Model
+    return ForeignKey{T}(data, loaded)
 end
-function ForeignKey{T}(x) where T
-    return ForeignKey{T}(;key_value=x)
+function ForeignKey{T}(data::Union{T,Nothing}) where T<:Model
+    return ForeignKey{T}(data, true)
 end
-
 
 mutable struct Field
     name::Symbol
@@ -87,11 +85,17 @@ end
 Key(f::Field; primary::Bool=false, auto_value::Bool=false) = Key([f], auto_value, primary)
 
 
+struct Relation
+    referenced_table::String
+    referenced_field::Symbol
+    local_field::Symbol 
+end
+
 mutable struct Table
     name::String
     data_type
     fields::Array{Field}
-    relations::Dict{DataType, Any}
+    relations::Dict{Field, Relation}
     primary_key::Key
 end
 
@@ -102,19 +106,40 @@ isprimarykey(f::Field, t::Table) = t.primary_key.field[1] === f
 mutable struct DBMapper
     tables::Dict{DataType, Table}
     pool::ConnectionPool
+    dirty::Bool
     function DBMapper(database_builder::Function) 
-        return new(Dict{DataType,Table}(), SimplePool(database_builder))
+        return new(Dict{DataType,Table}(), SimplePool(database_builder), false)
     end
 end
 
+function idfield(mapper::DBMapper, T::DataType)  :: Symbol
+    table = mapper.tables[T]
+    return table.primary_key.field[1].name
+end
+function getid(elem::T, mapper::DBMapper) where T<:Model
+    getfield(elem, idfield(mapper, T)).x
+end
+
+function setid!(elem::T, mapper::DBMapper, id)  where T<:Model
+    id_field = getfield(elem, idfield(mapper, T))
+    set!(id_field, id)
+end
+idfieldtype(::Type{T}, mapper::DBMapper) where T<:Model =  fieldtype(T, idfield(mapper, T))
+function idtype(::Type{T}, mapper::DBMapper) where T<:Model
+    id_field_type = fieldtype(T, idfield(mapper, T))
+    return element_type(id_field_type)
+end
 function Base.get(v::ForeignKey{T}, mapper::DBMapper) where T
-    if !isnothing(v.data)
+    if v.loaded
         return v.data
     end
-    v.data = select_one(mapper, T, id=v.key_value)
+    params = Dict{Symbol, Any}(idfield(mapper, T)=>getid(v.data, mapper))
+    v.data = select_one(mapper, T;params...)
+    v.loaded = true
     return v.data
 end
 function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T
+    mapper.dirty = true
     if table_name == ""
         table_name = String(split(lowercase(string(T)), ".")[end])
     end
@@ -131,31 +156,24 @@ function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T
     table = Table(table_name,
                   T,
                   fields,
-                  Dict{DataType, Any}(),
+                  Dict{Field, Relation}(),
                   primary_key)
     mapper.tables[T] =  table
 end
-
 function analyze_relations(mapper::DBMapper)
-    #=
     for table in values(mapper.tables)
         for field in table.fields
-            field_type = field.type
-            if field_type <: Array
-                field_type = eltype(field_type)
-            end
-            if haskey(mapper.tables, field_type) && !haskey(table.relations, field_type)
-                r = Relation(ONE_TO_MANY, table, mapper.tables[field_type])
-                table.relations[field_type] = r
-                mapper.tables[field_type].relations[table.data_type] = r
+            if field.type <: ForeignKey
+                referenced_table = mapper.tables[element_type(field.type)]
+                referenced_field = referenced_table.primary_key.field[1]
+                table.relations[field] = Relation(referenced_table.name,
+                                                  referenced_field.name,
+                                                  field.name)
             end
         end
     end
-    =#
+    mapper.dirty = false
 end
-
-
-
 function column_names(mapper, T::DataType) :: Array
     table = mapper.tables[T]
     return map(field->field.name, table.fields)
@@ -184,11 +202,13 @@ end
 
 
 
-struct NonRelational <: DatabaseType end
 
 function check_valid_type(mapper::DBMapper, T::DataType)
     if !haskey(mapper.tables, T)
         throw("Invalid type")
+    end
+    if mapper.dirty == true 
+        analyze_relations(mapper)
     end
 end
 
@@ -204,7 +224,7 @@ end
 
 function select_one(mapper::DBMapper, T::DataType; kwargs...) 
     check_valid_type(mapper, T)
-    select_one(mapper, database_kind(mapper.pool.dbtype), T; kwargs...)
+    return select_one(mapper, database_kind(mapper.pool.dbtype), T; kwargs...)
 end
 
 function clean_table!(mapper::DBMapper, T::DataType)
@@ -218,24 +238,31 @@ function drop_table!(mapper::DBMapper, T::DataType)
     drop_table!(mapper, database_kind(mapper.pool.dbtype), T)
 end
 
+
+
 database_kind(c::Type{T}) where T = throw("Unknow database kind")
 
 
 
+function configure_relation(mapper::DBMapper, T::Type, field; on_delete=true)
+    table  = mapper.tables[T]
+end
+
 function __init__()
   
     @require DBInterface="a10d1c49-ce27-4219-8d33-6db1a4562965" begin       
-        include(joinpath(@__DIR__,  "Relational.jl"))  
+        include(joinpath(@__DIR__, "Relational", "Relational.jl"))  
     end
     @require SQLite="0aa819cd-b072-5ff4-a722-6bc24af294d9" begin
-        include(joinpath(@__DIR__,  "SQLite.jl"))        
+        include(joinpath(@__DIR__, "Relational", "SQLite.jl"))        
         
     end        
     @require LibPQ="194296ae-ab2e-5f79-8cd4-7183a0a5a0d1" begin 
-        include(joinpath(@__DIR__,  "PostgreSQL.jl"))
+        include(joinpath(@__DIR__,  "Relational", "PostgreSQL.jl"))
     end
-    @require Redis="194296ae-ab2e-5f79-8cd4-7183a0a5a0d1" begin 
-        include(joinpath(@__DIR__,  "Redis.jl"))
+    @require Redis="0cf705f9-a9e2-50d1-a699-2b372a39b750" begin 
+        include(joinpath(@__DIR__, "NonRelational", "Redis.jl"))
+        include(joinpath(@__DIR__, "NonRelational", "NonRelational.jl"))
     end
     
     
