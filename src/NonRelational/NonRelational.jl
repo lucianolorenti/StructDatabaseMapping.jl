@@ -1,4 +1,4 @@
-struct NonRelational <: DatabaseType end
+struct NonRelational <: DatabaseKind end
 
 
 insert!(mapper::DBMapper, ::Type{NonRelational}, val) = insert!(mapper, mapper.pool.dbtype, val)
@@ -36,6 +36,11 @@ marshal(d::Number) = d
 marshal(d::DBId{T}) where T = marshal(d.x)
 marshal(mapper::DBMapper, d::ForeignKey{T}) where T  = getid(d.data, mapper)
     
+function unmarshal(mapper::DBMapper, ::Type{NonRelational}, ::Type{ForeignKey{T}}, x::String) where T<:Model
+    id_field_name = idfield(mapper, T)
+    params = Dict{Symbol, Any}(id_field_name=>unmarshal(mapper, idfieldtype(T, mapper), x))
+    return ForeignKey{T}(data=T(;params...), loaded=false)
+end
 
 function marshal(mapper::DBMapper, elemid::String, comps::Array)
     for (i, component) in enumerate(comps)
@@ -56,24 +61,9 @@ function marshal(mapper::DBMapper, x::T) where T<:Model
 end
 
 
-unmarshal(mapper::DBMapper, x) = unmarshal(x)
-unmarshal(mapper::DBMapper, ttype::Type{T}, x::String) where T = unmarshal(T, x)
-"""
-If i don't know the type and is not a dict, I return the object itself
-"""
-unmarshal(x) = x
-unmarshal(d::Type{T}, b::String) where T<:Number = parse(T, b)
-unmarshal(d::Type{Integer}, b::String) = parse(Int64, b)
-unmarshal(d::Type{Dict{K,V}}, b::String) where K where V = JSON.read(b)
-unmarshal(d::Type{String}, b::String) = b
-unmarshal(::Type{Dates.DateTime}, x::String) = DateTime(x)
-unmarshal(::Type{DBId{T}}, x::String) where T<:Integer = parse(UInt64, x)
-unmarshal(::Type{DBId{T}}, x::String) where T<:AbstractString = x
-function unmarshal(mapper::DBMapper, ::Type{ForeignKey{T}}, x::String) where T<:Model
-    id_field_name = idfield(mapper, T)
-    params = Dict{Symbol, Any}(id_field_name=>unmarshal(mapper, idfieldtype(T, mapper), x))
-    return ForeignKey{T}(data=T(;params...), loaded=false)
-end
+
+
+
 
 function unmarshal(mapper::DBMapper, DT::Type, d::AbstractDict)
     out = Dict{Symbol, Any}()
@@ -91,7 +81,7 @@ function unmarshal(mapper::DBMapper, DT::Type, d::AbstractDict)
                 throw(ArgumentError("Key $(string(iter)) is missing from the structure $DT, and field is neither Nullable nor Missings nor Nothing-compatible"))
             end
         else
-            val = unmarshal(mapper, DTNext, d[string(iter)])
+            val = unmarshal(mapper, mapper.pool.dbtype, DTNext, d[string(iter)])
         end
         out[iter] = val        
     end

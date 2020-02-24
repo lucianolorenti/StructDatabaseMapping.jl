@@ -3,21 +3,22 @@
 using .SQLite
 using .DBInterface
 
-const SQLITE_TYPE_MAPPINGS = Dict{Union{DataType, Symbol}, Symbol}( # Julia => SQLite
-  Char       => :CHARACTER,
-  String     => :VARCHAR,
-  Integer    => :INTEGER,
-  Int        => :INTEGER,
-  Float64    => :FLOAT,
-  DateTime   => :DATETIME,
-  Time       => :TIME,
-  Date       => :DATE,
-  Bool       => :BOOLEAN
+const SQLITE_TYPE_MAPPINGS = Dict{Union{Type, Symbol}, Symbol}( # Julia => SQLite
+  Char => :CHARACTER,
+  String => :VARCHAR,
+  Integer => :INTEGER,
+  Int => :INTEGER,
+  Float64 => :FLOAT,
+  DateTime => :DATETIME,
+  Time => :TIME,
+  Date => :DATE,
+  Bool => :BOOLEAN,
+  Dict => :JSON
 )
 
 
 
-function database_column_type(dbtype::Type{SQLite.DB}, d::Union{DataType, Symbol}) :: Symbol
+function database_column_type(dbtype::Type{SQLite.DB}, d::Union{Type, Symbol}) :: Symbol
     return SQLITE_TYPE_MAPPINGS[d]
 end
 

@@ -1,5 +1,11 @@
 using .DBInterface
-struct Relational <: DatabaseType end
+struct Relational <: DatabaseKind end
+
+function unmarshal(mapper::DBMapper, ::Type{Relational}, dest::Type{ForeignKey{T}}, orig) where T <:Model
+    id_field_name = idfield(mapper, T)
+    params = Dict{Symbol, Any}(id_field_name=>orig)
+    return ForeignKey{T}(data=T(;params...), loaded=false)
+end
 
 
 primary_key_type(dbtype::DataType, x) = x
@@ -89,15 +95,6 @@ function insert!(mapper::DBMapper, dbtype::Type{Relational}, elem::T) where T
     return elem
 end
 
-db_to_julia(mapper::DBMapper, dbtype, dest::DataType, orig)  =  db_to_julia(dbtype, dest, orig)
-db_to_julia(dbtype, dest::DataType, orig)  =  db_to_julia(dest, orig)
-db_to_julia(dest::DataType, orig) = orig
-db_to_julia(dest::Type{DateTime}, orig::String)  = DateTime(orig)
-function db_to_julia(mapper::DBMapper, dbtype, dest::Type{ForeignKey{T}}, orig) where T <:Model
-    id_field_name = idfield(mapper, T)
-    params = Dict{Symbol, Any}(id_field_name=>orig)
-    return ForeignKey{T}(data=T(;params...), loaded=false)
-end
 
 """
     function totuple(mapper::DBMapper, table::Table, dbtype::DataType, db_results) :: Array{Array{Pair}}
@@ -111,7 +108,7 @@ function totuple(mapper::DBMapper, table::Table, dbtype::DataType, db_results) :
         db_data = Dict(field=>getindex(row, field) 
                       for field in propertynames(row))
         for field in table.fields
-            push!(r, field.struct_field=>db_to_julia(mapper, dbtype, field.type, db_data[field.name]))
+            push!(r, field.struct_field=>unmarshal(mapper, dbtype, field.type, db_data[field.name]))
         end             
         push!(results, r)
     end

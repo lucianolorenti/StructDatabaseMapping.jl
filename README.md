@@ -30,10 +30,12 @@ end
 struct Book <: Model
     id::DBId{String}
     author::ForeignKey{Author}
+    data::Dict{String, Integer}
 end
 function Book(;id::Union{String, Nothing}=nothing,
-               author::ForeignKey{Author}=ForeignKey{Author}())
-    return Book(id, author)
+               author::Foreign{Author}=Author(),
+               data::Dict{String, Integer}=Dict())
+    return Book(id, author, data)
 end
 ```
 
@@ -80,20 +82,22 @@ author_selected = select_one(mapper, Author, id=id)
 └ LIMIT 1
 ```
 ```julia
-book = Book("super_string_id", author)
+book = Book(id="super_string_id", author=author, 
+            data=Dict{String, Integer}("some_data"=>5))
 insert!(mapper, book)
 ```
 ```sql
-┌ Info: INSERT INTO book (id,author_id)
-│ VALUES (?,?)
+┌ Info: INSERT INTO book (id,author_id,data)
+│ VALUES (?,?,?)
+└     
 ```
 ```julia
 book = select_one(mapper, Book, id="super_string_id")
-get(a.author, mapper).name == "pirulo"
+get(book.author, mapper).name == "pirulo"
+book.data["some_data"] == 5
 ```
-
 ```sql
-┌ Info: SELECT  id, author_id
+┌ Info: SELECT  id, author_id, data
 │ FROM book
 │ WHERE id="super_string_id"
 └ LIMIT 1
@@ -104,12 +108,11 @@ get(a.author, mapper).name == "pirulo"
 ```
 
 ```julia
-    drop_table!(mapper, Author)
-    drop_table!(mapper, Book)
+drop_table!(mapper, Author)
+drop_table!(mapper, Book)
 ```
 ```sql
 [ Info: DROP TABLE author
 [ Info: DROP TABLE book
 ```
-
-
+   

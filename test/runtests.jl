@@ -33,6 +33,7 @@ end
     include(joinpath(@__DIR__, "sqlite",  "TestSQLite.jl"))  
     try
         TestSQLite.test()
+        TestSQLite.test_cleanup()
     catch e
         TestSQLite.cleanup()
         rethrow(e)
@@ -50,6 +51,3 @@ end
     end  
     Pkg.rm("LibPQ")
 end
-
-
-

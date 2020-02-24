@@ -1,14 +1,16 @@
 
-const LIBPQ_TYPE_MAPPINGS = Dict{Union{DataType, Symbol}, Symbol}( # Julia / Postgres
-  Char       => :CHARACTER,
-  String     => :VARCHAR,
-  Integer    => :INTEGER,
-  Int        => :INTEGER,
-  Float64    => :FLOAT,
-  DateTime   => :TIMESTAMP,
-  Time       => :TIME,
-  Date       => :DATE,
-  Bool       => :BOOLEAN,
+const LIBPQ_TYPE_MAPPINGS = Dict{Union{Type, Symbol}, Symbol}( # Julia / Postgres
+  Char => :CHARACTER,
+  String => :VARCHAR,
+  Integer => :INTEGER,
+  Int => :INTEGER,
+  Float64 => :FLOAT,
+  DateTime => :TIMESTAMP,
+  Time => :TIME,
+  Date => :DATE,
+  Bool => :BOOLEAN,
+  Dict => :JSON,
+
   :Serial => :SERIAL
 )
 primary_key_type(dbtype::Type{LibPQ.Connection}, x::Type{T}) where T<:Integer = :Serial
@@ -24,7 +26,7 @@ RETURNING id
     return sql
 end
 
-function database_column_type(dbtype::Type{LibPQ.Connection}, d::Union{DataType, Symbol}) :: Symbol
+function database_column_type(dbtype::Type{LibPQ.Connection}, d::Union{Type, Symbol}) :: Symbol
     return LIBPQ_TYPE_MAPPINGS[d]
 end
 

@@ -1,14 +1,15 @@
 module StructDatabaseMapping
 export DBMapper, register!, process,  create_table, DBId, 
        Nullable, analyze_relations, ForeignKey, select_one,
-       clean_table!, drop_table!, Model, getid
+       clean_table!, drop_table!, Model, getid, Foreign
 using Dates
 using Requires
+using JSON
 
 import Base.insert!
 
 abstract type Connection end
-abstract type DatabaseType end
+abstract type DatabaseKind end
 
 include("Connection/Pool.jl")
 
@@ -23,13 +24,14 @@ mutable struct Nullable{T} <: AbstractNullable{T}
     x::Union{T,Nothing}
 end
 
-function Base.convert(::Type{F}, x::J) where F<:AbstractNullable{T}  where J<:T where T
+function Base.convert(::Type{F}, x::T) where F<:AbstractNullable{T}  where T
     return F(x)
 end
 
-function Base.convert(::Type{F}, x::Nothing) where F<:AbstractNullable{T} where T
+function Base.convert(::Type{F}, x::Nothing) where F<:AbstractNullable{T}  where T
     return F(nothing)
 end
+
 
 mutable struct DBId{T} <: AbstractNullable{T}
     x::Union{T,Nothing}
@@ -39,8 +41,12 @@ function DBId{T}() where T
 end
 
 
-element_type(x::DataType) = x
-element_type(data::Type{<:AbstractNullable{T}}) where T = T
+
+
+
+
+
+
 has_value(data::T) where T<:AbstractNullable = !isnothing(data.x)
 set!(data::T, elem::J) where T<:AbstractNullable{J} where J = data.x = elem
 
@@ -54,6 +60,7 @@ end
 function ForeignKey{T}(data::Union{T,Nothing}) where T<:Model
     return ForeignKey{T}(data, true)
 end
+const Foreign{T} = Union{T, ForeignKey{T}} 
 
 mutable struct Field
     name::Symbol
@@ -181,6 +188,7 @@ end
 normalize(dbtype, x) = x
 normalize(dbtype, x::DBId{T}) where T = x.x
 normalize(dbtype, x::ForeignKey{T}) where T = normalize(dbtype, x.data.id)
+normalize(dbtype, x::AbstractDict) where T = JSON.json(x)
 function struct_field_values(mapper, elem::T; ignore_primary_key::Bool=true) where T
     table = mapper.tables[T]
     column_names = []
@@ -247,6 +255,31 @@ database_kind(c::Type{T}) where T = throw("Unknow database kind")
 function configure_relation(mapper::DBMapper, T::Type, field; on_delete=true)
     table  = mapper.tables[T]
 end
+
+
+element_type(x::Type{T}) where T = x
+element_type(x::DataType) = x
+element_type(data::Type{<:AbstractNullable{T}}) where T = T
+element_type(x::Type{<:AbstractDict}) = Dict
+
+unmarshal(mapper::DBMapper, dbtype::DataType, dest::Type, orig)  =  unmarshal(mapper, database_kind(dbtype), dest, orig)
+unmarshal(mapper::DBMapper, dbkind::Type{T}, dest::Type, orig) where T<:DatabaseKind =  unmarshal(mapper, dest, orig)
+unmarshal(mapper::DBMapper, dest::Type, orig) = unmarshal(dest, orig)
+unmarshal(dest::DataType, orig) = orig
+unmarshal(dest::Type{DateTime}, orig::String)  = DateTime(orig)
+unmarshal(D::Type{<:Dict}, d::String) = JSON.parse(d, dicttype=D)
+unmarshal(mapper::DBMapper, x) = unmarshal(x)
+unmarshal(mapper::DBMapper, ttype::Type{T}, x::String) where T = unmarshal(T, x)
+unmarshal(x) = x
+unmarshal(d::Type{T}, b::String) where T<:Number = parse(T, b)
+unmarshal(d::Type{Integer}, b::String) = parse(Int64, b)
+unmarshal(d::Type{String}, b::String) = b
+unmarshal(::Type{DBId{T}}, x::String) where T<:Integer = parse(UInt64, x)
+unmarshal(::Type{DBId{T}}, x::String) where T<:AbstractString = x
+
+
+
+
 
 function __init__()
   
