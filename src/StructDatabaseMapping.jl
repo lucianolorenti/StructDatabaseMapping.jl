@@ -1,9 +1,10 @@
 module StructDatabaseMapping
 export DBMapper, register!, process,  create_table, DBId, 
        Nullable, analyze_relations, ForeignKey, select_one,
-       clean_table!, drop_table!, Model, getid, ForeignKeyParam
+       clean_table!, drop_table!, Model, getid, Foreign
 using Dates
 using Requires
+using JSON
 
 import Base.insert!
 
@@ -23,13 +24,14 @@ mutable struct Nullable{T} <: AbstractNullable{T}
     x::Union{T,Nothing}
 end
 
-function Base.convert(::Type{F}, x::J) where F<:AbstractNullable{T}  where J<:T where T
+function Base.convert(::Type{F}, x::T) where F<:AbstractNullable{T}  where T
     return F(x)
 end
 
-function Base.convert(::Type{F}, x::Nothing) where F<:AbstractNullable{T} where T
+function Base.convert(::Type{F}, x::Nothing) where F<:AbstractNullable{T}  where T
     return F(nothing)
 end
+
 
 mutable struct DBId{T} <: AbstractNullable{T}
     x::Union{T,Nothing}
@@ -38,9 +40,13 @@ function DBId{T}() where T
     return DBId{T}(nothing)
 end
 
-element_type(x::Type{T}) where T = x
-element_type(x::DataType) = x
-element_type(data::Type{<:AbstractNullable{T}}) where T = T
+
+
+
+
+
+
+
 has_value(data::T) where T<:AbstractNullable = !isnothing(data.x)
 set!(data::T, elem::J) where T<:AbstractNullable{J} where J = data.x = elem
 
@@ -57,7 +63,7 @@ end
 function ForeignKey{T}() where T<:Model
     return ForeignKey{T}(nothing, false)
 end
-const ForeignKeyParam{T} = Union{T, ForeignKey{T}} 
+const Foreign{T} = Union{T, ForeignKey{T}} 
 
 mutable struct Field
     name::Symbol
@@ -185,6 +191,7 @@ end
 normalize(dbtype, x) = x
 normalize(dbtype, x::DBId{T}) where T = x.x
 normalize(dbtype, x::ForeignKey{T}) where T = normalize(dbtype, x.data.id)
+normalize(dbtype, x::AbstractDict) where T = JSON.json(x)
 function struct_field_values(mapper, elem::T; ignore_primary_key::Bool=true) where T
     table = mapper.tables[T]
     column_names = []
@@ -251,6 +258,12 @@ database_kind(c::Type{T}) where T = throw("Unknow database kind")
 function configure_relation(mapper::DBMapper, T::Type, field; on_delete=true)
     table  = mapper.tables[T]
 end
+
+
+element_type(x::Type{T}) where T = x
+element_type(x::DataType) = x
+element_type(data::Type{<:AbstractNullable{T}}) where T = T
+element_type(x::Type{Dict{K, V}}) where K where V = Dict
 
 function __init__()
   

@@ -33,13 +33,14 @@ end=#
     include(joinpath(@__DIR__, "sqlite",  "TestSQLite.jl"))  
     try
         TestSQLite.test()
+        TestSQLite.test_cleanup()
     catch e
         TestSQLite.cleanup()
         rethrow(e)
     end
     Pkg.rm("SQLite")
 end
-#=@testset "PostgreSQL" begin
+@testset "PostgreSQL" begin
     Pkg.add("LibPQ")
     include(joinpath(@__DIR__, "postgresql",  "TestLibPQ.jl"))
     try
@@ -49,4 +50,4 @@ end
         rethrow(e)
     end  
     Pkg.rm("LibPQ")
-end=#
+end

@@ -93,7 +93,7 @@ db_to_julia(mapper::DBMapper, dbtype, dest::Type, orig)  =  db_to_julia(dbtype, 
 db_to_julia(dbtype, dest::Type, orig)  =  db_to_julia(dest, orig)
 db_to_julia(dest::DataType, orig) = orig
 db_to_julia(dest::Type{DateTime}, orig::String)  = DateTime(orig)
-db_to_julia(::Type{Dict}, d::Dict{Any,Any}) = d
+db_to_julia(D::Type{<:Dict}, d::String) = JSON.parse(d, dicttype=D)
 
 function db_to_julia(mapper::DBMapper, dbtype, dest::Type{ForeignKey{T}}, orig) where T <:Model
     id_field_name = idfield(mapper, T)

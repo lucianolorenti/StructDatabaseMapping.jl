@@ -6,24 +6,9 @@ using Dates
 
 
 DB_NUMBER = 0
-struct Author <: Model
-    id::DBId{Integer}
-    name::String
-    date::DateTime
-end
-function Author(;id::Union{Integer, Nothing} = nothing,
-                name::String="",
-                date::DateTime=now())
-    return Author(id, name, date)
-end
-struct Book <: Model
-    id::DBId{String}
-    author::ForeignKey{Author}
-end
-function Book(;id::Union{String, Nothing}=nothing,
-               author::ForeignKey{Author}=ForeignKey{Author}())
-    return Book(id, author)
-end
+
+include("../model.jl")
+
 function test()
     test_redis()
 end

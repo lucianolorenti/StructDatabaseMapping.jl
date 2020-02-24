@@ -4,28 +4,10 @@ using SQLite
 using StructDatabaseMapping
 using Dates
 
+include("../model.jl")
 
 DB_FILE = "test_db"
-struct Author <: Model
-    id::DBId{Integer}
-    name::String
-    date::DateTime
-end
-function Author(;id::Union{Integer, Nothing} = nothing,
-                name::String="",
-                date::DateTime=now())
-    return Author(id, name, date)
-end
-struct Book <: Model
-    id::DBId{String}
-    author::ForeignKey{Author}
-    data::Dict
-end
-function Book(;id::Union{String, Nothing}=nothing,
-               author::Author=Author(),
-               data::Dict=Dict())
-    return Book(id, author, data)
-end
+
 function test()
     test_sqlite()
 end
@@ -64,7 +46,8 @@ function test_sqlite()
     @test a.name == "pirulo"
 
 
-    book = Book(id="super_string_id", author=author)
+    book = Book(id="super_string_id", author=author, 
+                data=Dict{String, Integer}("some_data"=>5))
     insert!(mapper, book)
 
     a = select_one(mapper, Book, id="bbb")
@@ -73,16 +56,21 @@ function test_sqlite()
     
     @test a.id.x == "super_string_id"
     @test get(a.author, mapper).name == "pirulo"
+    @test a.data["some_data"] == 5
 
-    
+
+
+end
+function test_cleanup()
+    mapper = DBMapper(()->SQLite.DB(DB_FILE))
+
+    register!(mapper, Author)
+    register!(mapper, Book)    
 
     clean_table!(mapper, Author)
     clean_table!(mapper, Book)
 
     drop_table!(mapper, Author)
     drop_table!(mapper, Book)
-
-
 end
-
 end
