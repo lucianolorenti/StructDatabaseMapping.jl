@@ -60,9 +60,6 @@ end
 function ForeignKey{T}(data::Union{T,Nothing}) where T<:Model
     return ForeignKey{T}(data, true)
 end
-function ForeignKey{T}() where T<:Model
-    return ForeignKey{T}(nothing, false)
-end
 const Foreign{T} = Union{T, ForeignKey{T}} 
 
 mutable struct Field
@@ -271,14 +268,12 @@ unmarshal(mapper::DBMapper, dest::Type, orig) = unmarshal(dest, orig)
 unmarshal(dest::DataType, orig) = orig
 unmarshal(dest::Type{DateTime}, orig::String)  = DateTime(orig)
 unmarshal(D::Type{<:Dict}, d::String) = JSON.parse(d, dicttype=D)
-
 unmarshal(mapper::DBMapper, x) = unmarshal(x)
 unmarshal(mapper::DBMapper, ttype::Type{T}, x::String) where T = unmarshal(T, x)
 unmarshal(x) = x
 unmarshal(d::Type{T}, b::String) where T<:Number = parse(T, b)
 unmarshal(d::Type{Integer}, b::String) = parse(Int64, b)
 unmarshal(d::Type{String}, b::String) = b
-unmarshal(::Type{Dates.DateTime}, x::String) = DateTime(x)
 unmarshal(::Type{DBId{T}}, x::String) where T<:Integer = parse(UInt64, x)
 unmarshal(::Type{DBId{T}}, x::String) where T<:AbstractString = x
 
