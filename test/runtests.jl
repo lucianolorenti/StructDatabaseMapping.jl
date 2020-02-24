@@ -14,7 +14,7 @@ end
     include("TestMapper.jl")
 end
 
-@testset "Redis" begin
+#=@testset "Redis" begin
     Pkg.add(PackageSpec(url="https://github.com/JuliaDatabases/Redis.jl.git"))
     include(joinpath(@__DIR__, "redis",  "TestRedis.jl"))
     
@@ -25,7 +25,7 @@ end
         rethrow(e)
     end  
     Pkg.rm("Redis") 
-end
+end=#
 # I have to do  this because LibPQ and SQlite cannot be installed 
 # Because there is some incompatibility with Tables.jl
 @testset "SQLite" begin
@@ -39,7 +39,7 @@ end
     end
     Pkg.rm("SQLite")
 end
-@testset "PostgreSQL" begin
+#=@testset "PostgreSQL" begin
     Pkg.add("LibPQ")
     include(joinpath(@__DIR__, "postgresql",  "TestLibPQ.jl"))
     try
@@ -49,7 +49,4 @@ end
         rethrow(e)
     end  
     Pkg.rm("LibPQ")
-end
-
-
-
+end=#

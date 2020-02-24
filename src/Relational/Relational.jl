@@ -89,10 +89,12 @@ function insert!(mapper::DBMapper, dbtype::Type{Relational}, elem::T) where T
     return elem
 end
 
-db_to_julia(mapper::DBMapper, dbtype, dest::DataType, orig)  =  db_to_julia(dbtype, dest, orig)
-db_to_julia(dbtype, dest::DataType, orig)  =  db_to_julia(dest, orig)
+db_to_julia(mapper::DBMapper, dbtype, dest::Type, orig)  =  db_to_julia(dbtype, dest, orig)
+db_to_julia(dbtype, dest::Type, orig)  =  db_to_julia(dest, orig)
 db_to_julia(dest::DataType, orig) = orig
 db_to_julia(dest::Type{DateTime}, orig::String)  = DateTime(orig)
+db_to_julia(::Type{Dict}, d::Dict{Any,Any}) = d
+
 function db_to_julia(mapper::DBMapper, dbtype, dest::Type{ForeignKey{T}}, orig) where T <:Model
     id_field_name = idfield(mapper, T)
     params = Dict{Symbol, Any}(id_field_name=>orig)

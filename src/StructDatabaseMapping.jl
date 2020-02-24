@@ -1,7 +1,7 @@
 module StructDatabaseMapping
 export DBMapper, register!, process,  create_table, DBId, 
        Nullable, analyze_relations, ForeignKey, select_one,
-       clean_table!, drop_table!, Model, getid
+       clean_table!, drop_table!, Model, getid, ForeignKeyParam
 using Dates
 using Requires
 
@@ -38,7 +38,7 @@ function DBId{T}() where T
     return DBId{T}(nothing)
 end
 
-
+element_type(x::Type{T}) where T = x
 element_type(x::DataType) = x
 element_type(data::Type{<:AbstractNullable{T}}) where T = T
 has_value(data::T) where T<:AbstractNullable = !isnothing(data.x)
@@ -54,6 +54,10 @@ end
 function ForeignKey{T}(data::Union{T,Nothing}) where T<:Model
     return ForeignKey{T}(data, true)
 end
+function ForeignKey{T}() where T<:Model
+    return ForeignKey{T}(nothing, false)
+end
+const ForeignKeyParam{T} = Union{T, ForeignKey{T}} 
 
 mutable struct Field
     name::Symbol

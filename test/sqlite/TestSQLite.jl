@@ -19,10 +19,12 @@ end
 struct Book <: Model
     id::DBId{String}
     author::ForeignKey{Author}
+    data::Dict
 end
 function Book(;id::Union{String, Nothing}=nothing,
-               author::ForeignKey{Author}=ForeignKey{Author}())
-    return Book(id, author)
+               author::Author=Author(),
+               data::Dict=Dict())
+    return Book(id, author, data)
 end
 function test()
     test_sqlite()
@@ -46,7 +48,7 @@ function test_sqlite()
          == "CREATE TABLE IF NOT EXISTS author (id INTEGER PRIMARY KEY, name VARCHAR  NOT NULL, date DATETIME  NOT NULL)")
 
     @test (StructDatabaseMapping.create_table_query(mapper, Book) 
-          == "CREATE TABLE IF NOT EXISTS book (id VARCHAR PRIMARY KEY, author_id INTEGER  NOT NULL, FOREIGN KEY(author_id) REFERENCES author(id))")
+          == "CREATE TABLE IF NOT EXISTS book (id VARCHAR PRIMARY KEY, author_id INTEGER  NOT NULL, data JSON  NOT NULL, FOREIGN KEY(author_id) REFERENCES author(id))")
 
     create_table(mapper, Author)
     create_table(mapper, Book)
@@ -62,7 +64,7 @@ function test_sqlite()
     @test a.name == "pirulo"
 
 
-    book = Book("super_string_id", author)
+    book = Book(id="super_string_id", author=author)
     insert!(mapper, book)
 
     a = select_one(mapper, Book, id="bbb")
