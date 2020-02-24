@@ -14,7 +14,7 @@ function insert!(mapper::DBMapper, ::Type{Redis.RedisConnection}, elem::T)  wher
     release_connection(mapper.pool, conn)    
 end
 
-function select_one(mapper::DBMapper, ::Type{Redis.RedisConnection}, T::DataType; kwargs...)
+function select_one(mapper::DBMapper, ::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
     params = Dict(kwargs...)
     id_field = idfield(mapper, T)
     id = params[id_field]

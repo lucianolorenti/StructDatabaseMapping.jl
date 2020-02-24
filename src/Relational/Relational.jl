@@ -28,7 +28,7 @@ function create_table_field(mapper::DBMapper, field::Field, table::Table, dbtype
 end
 
 
-function create_table_query(mapper::DBMapper, T::DataType; if_not_exists::Bool=true) :: String
+function create_table_query(mapper::DBMapper, T::Type{<:Model}; if_not_exists::Bool=true) :: String
     if mapper.dirty == true 
         analyze_relations(mapper)
     end
@@ -48,7 +48,7 @@ function create_table_query(mapper::DBMapper, T::DataType; if_not_exists::Bool=t
     return String(strip("""CREATE TABLE $if_not_exists_str $(table.name) ($create_table_fields)"""))
 end
 
-function create_table(mapper::DBMapper, dbtype::Type{Relational}, T::DataType; if_not_exists::Bool=true)
+function create_table(mapper::DBMapper, dbtype::Type{Relational}, T::Type{<:Model}; if_not_exists::Bool=true)
     sql = create_table_query(mapper, T, if_not_exists=if_not_exists)
     @info sql
     conn = get_connection(mapper.pool)
@@ -62,7 +62,7 @@ end
 
 insert_query(table::Table, column_names::Array, dbtype) = insert_query(table, column_names)
 
-function insert_query(table::Table, column_names::Array) where T
+function insert_query(table::Table, column_names::Array)
     values_placeholder = join(repeat(['?'], length(column_names)), ",")
     column_names = join(column_names, ",")    
     sql = """
@@ -79,7 +79,7 @@ end
 
 Insert the element in the database. Update the id of the element
 """
-function insert!(mapper::DBMapper, dbtype::Type{Relational}, elem::T) where T
+function insert!(mapper::DBMapper, dbtype::Type{Relational}, elem::T) where T<:Model
     (column_names, values) = struct_field_values(mapper, elem)
     table = mapper.tables[T]
     sql = insert_query(table, column_names, mapper.pool.dbtype)
@@ -118,7 +118,7 @@ end
 escape_value(dbtype::DataType, x) = x
 escape_value(dbtype::DataType, x::AbstractString) = "\"$x\""
 
-function select_one(mapper::DBMapper, ::Type{Relational}, T::Type; kwargs...) 
+function select_one(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwargs...) 
     dbtype = mapper.pool.dbtype
     table = mapper.tables[T]
     cnames = join(column_names(mapper, T), ", ")
@@ -143,11 +143,11 @@ end
 
 clean_table_query(table::Table,  dbtype) = clean_table_query(table)
 
-function clean_table_query(table::Table) where T
+function clean_table_query(table::Table)
     return "TRUNCATE TABLE $(table.name)"
 end
 
-function clean_table!(mapper::DBMapper, dbtype::Type{Relational}, T::Type)
+function clean_table!(mapper::DBMapper, dbtype::Type{Relational}, T::Type{<:Model})
     table = mapper.tables[T]
     sql = clean_table_query(table, mapper.pool.dbtype)
     conn = get_connection(mapper.pool)
@@ -157,11 +157,11 @@ end
 
 drop_table_query(table::Table,  dbtype) = drop_table_query(table)
 
-function drop_table_query(table::Table) where T
+function drop_table_query(table::Table)
     return "DROP TABLE $(table.name)"
 end
 
-function drop_table!(mapper::DBMapper, dbtype::Type{Relational}, T::DataType)
+function drop_table!(mapper::DBMapper, dbtype::Type{Relational}, T::Type{<:Model})
     table = mapper.tables[T]
     sql = drop_table_query(table, mapper.pool.dbtype)
     @info sql

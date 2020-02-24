@@ -1,16 +1,6 @@
 struct NonRelational <: DatabaseKind end
 
 
-insert!(mapper::DBMapper, ::Type{NonRelational}, val) = insert!(mapper, mapper.pool.dbtype, val)
-function select_one(mapper::DBMapper, ::Type{NonRelational}, T::DataType; kwargs...)
-    return select_one(mapper, mapper.pool.dbtype, T; kwargs...)
-end
-function clean_table!(mapper::DBMapper,  ::Type{NonRelational}, T::DataType)
-    clean_table!(mapper, mapper.pool.dbtype, T)
-end
-function drop_table!(mapper::DBMapper, ::Type{NonRelational}, T::DataType)
-     drop_table!(mapper, mapper.pool.dbtype, T)
-end
 
 
 function generate_id(d, ::Type{Integer}) :: UInt64

@@ -220,32 +220,53 @@ function check_valid_type(mapper::DBMapper, T::DataType)
     end
 end
 
-function create_table(mapper::DBMapper, T::DataType; if_not_exists::Bool=true)
+function create_table(mapper::DBMapper, T::Type{<:Model}; if_not_exists::Bool=true)
     check_valid_type(mapper, T)
-    create_table(mapper, database_kind(mapper.pool.dbtype), T)    
+    create_table(mapper, mapper.pool.dbtype, T)    
+end
+function create_table(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; if_not_exists::Bool=true) 
+    create_table(mapper, database_kind(dbtype), T; if_not_exists=if_not_exists)
 end
 
-function insert!(mapper::DBMapper, elem::T) where T
+function insert!(mapper::DBMapper, elem::T) where T <: Model
     check_valid_type(mapper, T)
-    insert!(mapper, database_kind(mapper.pool.dbtype), elem)
+    insert!(mapper, mapper.pool.dbtype, elem)
+end
+function insert!(mapper::DBMapper, dbtype::DataType, elem::T) where T <: Model
+    insert!(mapper, database_kind(dbtype), elem)
 end
 
-function select_one(mapper::DBMapper, T::DataType; kwargs...) 
+function update!(mapper::DBMapper, elem::T) where T<:Model
     check_valid_type(mapper, T)
-    return select_one(mapper, database_kind(mapper.pool.dbtype), T; kwargs...)
+    update!(mapper, mapper.pool.dbtype, elem)
+end
+function update!(mapper::DBMapper, dbtype::DataType, elem::T) where T <:Model
+    update!(mapper, database_kind(dbtype), elem)
 end
 
-function clean_table!(mapper::DBMapper, T::DataType)
+function select_one(mapper::DBMapper, T::Type{<:Model}; kwargs...) 
     check_valid_type(mapper, T)
-    clean_table!(mapper, database_kind(mapper.pool.dbtype), T)
+    return select_one(mapper, mapper.pool.dbtype, T; kwargs...)
+end
+function select_one(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...) 
+    return select_one(mapper, database_kind(dbtype), T; kwargs...)
 end
 
+function clean_table!(mapper::DBMapper, T::Type{<:Model})
+    check_valid_type(mapper, T)
+    clean_table!(mapper, mapper.pool.dbtype, T)
+end
+function clean_table!(mapper::DBMapper, dbtype::DataType, T::Type{<:Model})
+    clean_table!(mapper, database_kind(dbtype), T)
+end
 
 function drop_table!(mapper::DBMapper, T::DataType)
     check_valid_type(mapper, T)
-    drop_table!(mapper, database_kind(mapper.pool.dbtype), T)
+    drop_table!(mapper, mapper.pool.dbtype, T)
 end
-
+function drop_table!(mapper::DBMapper, dbtype::DataType, T::Type{<:Model})
+    drop_table!(mapper, database_kind(dbtype), T)
+end
 
 
 database_kind(c::Type{T}) where T = throw("Unknow database kind")
