@@ -53,11 +53,11 @@ function test_redis()
     @test a.data["some_data"] == 5
     
 
-    #clean_table!(mapper, Author)
-    #clean_table!(mapper, Book)
+    clean_table!(mapper, Author)
+    clean_table!(mapper, Book)
 
-    #drop_table!(mapper, Author)
-    #drop_table!(mapper, Book)
+    drop_table!(mapper, Author)
+    drop_table!(mapper, Book)
 
 
 end
