@@ -9,7 +9,7 @@ using JSON
 import Base.insert!
 
 abstract type Connection end
-abstract type DatabaseType end
+abstract type DatabaseKind end
 
 include("Connection/Pool.jl")
 
@@ -263,7 +263,28 @@ end
 element_type(x::Type{T}) where T = x
 element_type(x::DataType) = x
 element_type(data::Type{<:AbstractNullable{T}}) where T = T
-element_type(x::Type{Dict{K, V}}) where K where V = Dict
+element_type(x::Type{<:AbstractDict}) = Dict
+
+unmarshal(mapper::DBMapper, dbtype::DataType, dest::Type, orig)  =  unmarshal(mapper, database_kind(dbtype), dest, orig)
+unmarshal(mapper::DBMapper, dbkind::Type{T}, dest::Type, orig) where T<:DatabaseKind =  unmarshal(mapper, dest, orig)
+unmarshal(mapper::DBMapper, dest::Type, orig) = unmarshal(dest, orig)
+unmarshal(dest::DataType, orig) = orig
+unmarshal(dest::Type{DateTime}, orig::String)  = DateTime(orig)
+unmarshal(D::Type{<:Dict}, d::String) = JSON.parse(d, dicttype=D)
+
+unmarshal(mapper::DBMapper, x) = unmarshal(x)
+unmarshal(mapper::DBMapper, ttype::Type{T}, x::String) where T = unmarshal(T, x)
+unmarshal(x) = x
+unmarshal(d::Type{T}, b::String) where T<:Number = parse(T, b)
+unmarshal(d::Type{Integer}, b::String) = parse(Int64, b)
+unmarshal(d::Type{String}, b::String) = b
+unmarshal(::Type{Dates.DateTime}, x::String) = DateTime(x)
+unmarshal(::Type{DBId{T}}, x::String) where T<:Integer = parse(UInt64, x)
+unmarshal(::Type{DBId{T}}, x::String) where T<:AbstractString = x
+
+
+
+
 
 function __init__()
   

@@ -14,7 +14,7 @@ function test()
 end
 function cleanup()
     try
-        rm(DB_FILE)
+      
     catch
     end
 end
@@ -41,7 +41,8 @@ function test_redis()
     @test a.name == "pirulo"
 
 
-    book = Book("super_string_id", author)
+    book = Book(id="super_string_id", author=author, 
+                data=Dict{String, Integer}("some_data"=>5))
     insert!(mapper, book)
 
     a = select_one(mapper, Book, id="bbb")
@@ -49,14 +50,14 @@ function test_redis()
     a = select_one(mapper, Book, id="super_string_id")
     @test getid(a, mapper) == "super_string_id"
     @test get(a.author, mapper).name == "pirulo"
-
+    @test a.data["some_data"] == 5
     
 
-    clean_table!(mapper, Author)
-    clean_table!(mapper, Book)
+    #clean_table!(mapper, Author)
+    #clean_table!(mapper, Book)
 
-    drop_table!(mapper, Author)
-    drop_table!(mapper, Book)
+    #drop_table!(mapper, Author)
+    #drop_table!(mapper, Book)
 
 
 end
