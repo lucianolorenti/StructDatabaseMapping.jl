@@ -1,4 +1,4 @@
-[![Coverage Status](https://coveralls.io/repos/github/lucianolorenti/StructDatabaseMapper/badge.svg?branch=master)](https://coveralls.io/github/lucianolorenti/StructDatabaseMapper?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/lucianolorenti/StructDatabaseMapper/badge.svg?branch=lucianolorenti-CI)](https://coveralls.io/github/lucianolorenti/StructDatabaseMapper?branch=lucianolorenti-CI)
 
 # Installation
 ```julia
@@ -6,14 +6,19 @@
 ```
 
 # Compatibility
-* SQLite
-* PostgreSQL
-* Redis
+* [SQLite](https://github.com/JuliaDatabases/SQLite.jl)
+* [PostgreSQL](https://github.com/invenia/LibPQ.jl)
+* [Redis](https://github.com/JuliaDatabases/Redis.jl)
 * Possibly every relational DB that supports the DBInterface
 
-# Let define a model
-This is a simple model. There are two different types: ForeignKey and DBId. 
-Each of the `struct` has to have a construcor with named parameters.
+# Let's define a model
+This is a simple model. There are four new types to introduce: Model, ForeignKey, DBId and Foreign.
+* Model is the abstact type every struct to be persisted should inherit from
+* ForeignKey is a generic type that represents a reference to other Model
+* DBId is other generic type that encodes the struct identifier.
+* Foreign is used as datatype in the constructor of a struct that contains a ForeignKey field. That datatype is bit of hack I don't like, but I couldn't find a  better way.
+
+Each `type <: Model` must have a construcor with named parameters.
 ```julia
 using StructDatabaseMapping
 using Dates
