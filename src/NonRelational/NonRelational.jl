@@ -1,16 +1,6 @@
 struct NonRelational <: DatabaseKind end
 
 
-insert!(mapper::DBMapper, ::Type{NonRelational}, val) = insert!(mapper, mapper.pool.dbtype, val)
-function select_one(mapper::DBMapper, ::Type{NonRelational}, T::DataType; kwargs...)
-    return select_one(mapper, mapper.pool.dbtype, T; kwargs...)
-end
-function clean_table!(mapper::DBMapper,  ::Type{NonRelational}, T::DataType)
-    clean_table!(mapper, mapper.pool.dbtype, T)
-end
-function drop_table!(mapper::DBMapper, ::Type{NonRelational}, T::DataType)
-     drop_table!(mapper, mapper.pool.dbtype, T)
-end
 
 
 function generate_id(d, ::Type{Integer}) :: UInt64
@@ -23,8 +13,8 @@ end
 function generate_id(d, ::Type{String}) :: String
     return string(generate_id(d, Integer))
 end
-
-
+function create_table(mapper::DBMapper, dbtype::Type{NonRelational}, T::Type{<:Model}; if_not_exists::Bool=true)
+end
 marshal(mapper::DBMapper, x)  = marshal(x)
 marshal(x::AbstractDict{K, V}) where K where V = JSON.json(x)
 marshal(x::Array{T}) where T = JSON.json(x)
