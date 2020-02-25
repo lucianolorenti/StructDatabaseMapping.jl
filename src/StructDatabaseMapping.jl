@@ -18,6 +18,69 @@ abstract type Model end
 include("Connection/Pool.jl")
 
 
+"""
+    mutable struct Field
+
+Internal field representation
+"""
+mutable struct Field
+    name::Symbol
+    struct_field::Symbol
+    type::Type
+    nullable::Bool
+    default::Union{Any, Nothing}
+end
+function Field(name::Symbol, type::Type)
+    primary_key = false
+    nullable = false
+    db_field_name = name
+    if type <: ForeignKey        
+        db_field_name = Symbol(string(db_field_name) * "_id")
+    elseif type <: AbstractNullable
+        nullable = true
+    end
+    
+    return Field(db_field_name, name, type, nullable, primary_key)
+end
+
+
+
+mutable struct Key
+    field::Array{Field}
+    has_auto_value::Bool
+    is_primary::Bool
+end
+Key(f::Field; primary::Bool=false, auto_value::Bool=false) = Key([f], auto_value, primary)
+
+
+struct Relation
+    referenced_table::String
+    referenced_field::Symbol
+    local_field::Symbol 
+end
+
+mutable struct Table
+    name::String
+    data_type
+    fields::Array{Field}
+    relations::Dict{Field, Relation}
+    primary_key::Key
+end
+function idfield(t::Table)  :: Symbol
+    return t.primary_key.field[1].name
+end
+
+isprimarykey(f::Field, t::Table) = t.primary_key.field[1] === f
+
+
+mutable struct DBMapper
+    tables::Dict{DataType, Table}
+    pool::ConnectionPool
+    dirty::Bool
+    function DBMapper(database_builder::Function) 
+        return new(Dict{DataType,Table}(), SimplePool(database_builder), false)
+    end
+end
 
 
 @enum RELATION_TYPE  ONE_TO_MANY=1 ONE_TO_ONE=2
@@ -148,69 +211,6 @@ function Base.get(v::ForeignKey{T}, mapper::DBMapper) where T
 end
 
 
-"""
-    mutable struct Field
-
-Internal field representation
-"""
-mutable struct Field
-    name::Symbol
-    struct_field::Symbol
-    type::Type
-    nullable::Bool
-    default::Union{Any, Nothing}
-end
-function Field(name::Symbol, type::Type)
-    primary_key = false
-    nullable = false
-    db_field_name = name
-    if type <: ForeignKey        
-        db_field_name = Symbol(string(db_field_name) * "_id")
-    elseif type <: AbstractNullable
-        nullable = true
-    end
-    
-    return Field(db_field_name, name, type, nullable, primary_key)
-end
-
-
-
-mutable struct Key
-    field::Array{Field}
-    has_auto_value::Bool
-    is_primary::Bool
-end
-Key(f::Field; primary::Bool=false, auto_value::Bool=false) = Key([f], auto_value, primary)
-
-
-struct Relation
-    referenced_table::String
-    referenced_field::Symbol
-    local_field::Symbol 
-end
-
-mutable struct Table
-    name::String
-    data_type
-    fields::Array{Field}
-    relations::Dict{Field, Relation}
-    primary_key::Key
-end
-function idfield(t::Table)  :: Symbol
-    return t.primary_key.field[1].name
-end
-
-isprimarykey(f::Field, t::Table) = t.primary_key.field[1] === f
-
-
-mutable struct DBMapper
-    tables::Dict{DataType, Table}
-    pool::ConnectionPool
-    dirty::Bool
-    function DBMapper(database_builder::Function) 
-        return new(Dict{DataType,Table}(), SimplePool(database_builder), false)
-    end
-end
 
 
 
