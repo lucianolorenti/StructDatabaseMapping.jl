@@ -10,7 +10,8 @@ function insert!(mapper::DBMapper, ::Type{Redis.RedisConnection}, elem::T)  wher
     if table.primary_key.has_auto_value
         setid!(elem, mapper, generate_id(elem, idtype(T, mapper)))
     end
-    result = Redis.hmset(conn, redis_id(T, getid(elem, mapper)), marshal(mapper, elem))
+    id = redis_id(T, getid(elem, mapper))
+    result = Redis.hmset(conn, id, marshal(mapper, elem))
     release_connection(mapper.pool, conn)    
 end
 
@@ -37,4 +38,22 @@ end
 
 function drop_table!(::DBMapper, ::Type{Redis.RedisConnection}, elem::Type{T})  where T<:Model
     
+end
+function update!(mapper::DBMapper, ::Type{Redis.RedisConnection}, elem::T; fields::Array{Symbol}=Symbol[])  where T<:Model
+    id = getid(elem, mapper)
+    if id === nothing
+        throw("The element does not have id. Cannot update")
+    end
+    data = marshal(mapper, elem)
+    if length(fields) > 0
+        for f in keys(data) 
+            if !(f in fields)
+                pop!(data, f)        
+            end
+        end
+    end
+    id = redis_id(T, id)
+    conn = get_connection(mapper.pool)    
+    result = Redis.hmset(conn, id, data)
+    release_connection(mapper.pool, conn)    
 end

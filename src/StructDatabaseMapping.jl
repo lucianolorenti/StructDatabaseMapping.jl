@@ -1,7 +1,9 @@
 module StructDatabaseMapping
 export DBMapper, register!, process,  create_table, DBId, 
        Nullable, analyze_relations, ForeignKey, select_one,
-       clean_table!, drop_table!, Model, getid, Foreign
+       clean_table!, drop_table!, Model, getid, Foreign,
+       update!
+
 using Dates
 using Requires
 using JSON
@@ -105,7 +107,9 @@ mutable struct Table
     relations::Dict{Field, Relation}
     primary_key::Key
 end
-
+function idfield(t::Table)  :: Symbol
+    return t.primary_key.field[1].name
+end
 
 isprimarykey(f::Field, t::Table) = t.primary_key.field[1] === f
 
@@ -119,10 +123,8 @@ mutable struct DBMapper
     end
 end
 
-function idfield(mapper::DBMapper, T::DataType)  :: Symbol
-    table = mapper.tables[T]
-    return table.primary_key.field[1].name
-end
+idfield(mapper::DBMapper, T::DataType)  :: Symbol =  idfield(mapper.tables[T])
+
 function getid(elem::T, mapper::DBMapper) where T<:Model
     getfield(elem, idfield(mapper, T)).x
 end
@@ -181,19 +183,26 @@ function analyze_relations(mapper::DBMapper)
     end
     mapper.dirty = false
 end
-function column_names(mapper, T::DataType) :: Array
+function column_names(mapper::DBMapper, T::DataType) :: Array
     table = mapper.tables[T]
     return map(field->field.name, table.fields)
+end
+function struct_fields(mapper::DBMapper, T::DataType) :: Array{Symbol}
+    table = mapper.tables[T]
+    return map(field->field.struct_field, table.fields)
 end
 normalize(dbtype, x) = x
 normalize(dbtype, x::DBId{T}) where T = x.x
 normalize(dbtype, x::ForeignKey{T}) where T = normalize(dbtype, x.data.id)
 normalize(dbtype, x::AbstractDict) where T = JSON.json(x)
-function struct_field_values(mapper, elem::T; ignore_primary_key::Bool=true) where T
+function struct_field_values(mapper, elem::T; ignore_primary_key::Bool=true, fields::Array{Symbol}=Symbol[]) where T
     table = mapper.tables[T]
     column_names = []
     values = []
     for field in table.fields
+        if length(fields) > 0 && !(field.struct_field in fields)
+            continue
+        end
         if isprimarykey(field, table) && table.primary_key.has_auto_value && ignore_primary_key
             continue
         end
@@ -222,7 +231,7 @@ end
 
 function create_table(mapper::DBMapper, T::Type{<:Model}; if_not_exists::Bool=true)
     check_valid_type(mapper, T)
-    create_table(mapper, mapper.pool.dbtype, T)    
+    create_table(mapper, mapper.pool.dbtype, T; if_not_exists=if_not_exists)    
 end
 function create_table(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; if_not_exists::Bool=true) 
     create_table(mapper, database_kind(dbtype), T; if_not_exists=if_not_exists)
@@ -236,12 +245,12 @@ function insert!(mapper::DBMapper, dbtype::DataType, elem::T) where T <: Model
     insert!(mapper, database_kind(dbtype), elem)
 end
 
-function update!(mapper::DBMapper, elem::T) where T<:Model
+function update!(mapper::DBMapper, elem::T; fields::Array{Symbol}=Symbol[]) where T<:Model
     check_valid_type(mapper, T)
-    update!(mapper, mapper.pool.dbtype, elem)
+    update!(mapper, mapper.pool.dbtype, elem; fields=fields)
 end
-function update!(mapper::DBMapper, dbtype::DataType, elem::T) where T <:Model
-    update!(mapper, database_kind(dbtype), elem)
+function update!(mapper::DBMapper, dbtype::DataType, elem::T; fields::Array{Symbol}=Symbol[]) where T <:Model
+    update!(mapper, database_kind(dbtype), elem; fields=fields)
 end
 
 function select_one(mapper::DBMapper, T::Type{<:Model}; kwargs...) 

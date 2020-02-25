@@ -13,8 +13,8 @@ end
 function generate_id(d, ::Type{String}) :: String
     return string(generate_id(d, Integer))
 end
-
-
+function create_table(mapper::DBMapper, dbtype::Type{NonRelational}, T::Type{<:Model}; if_not_exists::Bool=true)
+end
 marshal(mapper::DBMapper, x)  = marshal(x)
 marshal(x::AbstractDict{K, V}) where K where V = JSON.json(x)
 marshal(x::Array{T}) where T = JSON.json(x)
