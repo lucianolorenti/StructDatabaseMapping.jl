@@ -2,7 +2,7 @@ module StructDatabaseMapping
 export DBMapper, register!, create_table, DBId, 
        Nullable, analyze_relations, ForeignKey, select_one,
        clean_table!, drop_table!, Model, getid, Foreign,
-       update!
+       update!, exists
 
 using Dates
 using Requires
@@ -131,7 +131,9 @@ end
 
 Return the identifier field name for the given type
 """
-idfield(mapper::DBMapper, T::DataType)  :: Symbol =  idfield(mapper.tables[T])
+function idfield(mapper::DBMapper, T::DataType)  :: Symbol
+    return idfield(mapper.tables[T])
+end
 """
     function getid(elem::T, mapper::DBMapper) where T<:Model
 
@@ -395,6 +397,33 @@ end
 function drop_table!(mapper::DBMapper, dbtype::DataType, T::Type{<:Model})
     drop_table!(mapper, database_kind(dbtype), T)
 end
+
+
+"""
+    function exists(mapper::DBMapper, T::DataType; kwargs...)
+
+Return wether the element exists.
+The param pk cand be used as generic way to identify the primary key 
+of the struct
+"""
+function exists(mapper::DBMapper, T::DataType; kwargs...) :: Bool
+    check_valid_type(mapper, T)
+    params = Dict(kwargs...)
+    if haskey(params, :pk)
+        params[idfield(mapper, T)] = params[:pk]
+        pop!(params, :pk)
+    end
+    exists(mapper, mapper.pool.dbtype, T; params...)
+end
+function exists(mapper::DBMapper, elem::T) where T<:Model
+    check_valid_type(mapper, T)
+    return exists(mapper, T; pk=getid(elem, mapper))
+end
+function exists(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...)
+    exists(mapper, database_kind(dbtype), T; kwargs...)
+end
+
+
 
 """
     database_kind(c::Type{T})

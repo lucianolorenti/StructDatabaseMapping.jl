@@ -37,6 +37,25 @@ function _test_basic_functionalities(creator)
     @test !isnothing(author.id.x)
     id = author.id.x
 
+    author = Author(name="Author 1", age=2)
+    insert!(mapper, author)
+
+    author = Author(name="Author 2", age=3)
+    insert!(mapper, author)
+
+    author = Author(name="Author 3", age=4)
+    insert!(mapper, author)
+
+    @test StructDatabaseMapping.exists(mapper, Author, name="Enrique Banch") == false
+    @test StructDatabaseMapping.exists(mapper, Author, name="pirulo") == true
+    @test StructDatabaseMapping.exists(mapper, author) == true
+
+    @test StructDatabaseMapping.exists(mapper, Author, name="Author 3", age=4) == true
+    @test StructDatabaseMapping.exists(mapper, Author, name="Author 3", age=3) == false
+    @test StructDatabaseMapping.exists(mapper, Author, pk=author.id.x, age=3) == false
+    @test StructDatabaseMapping.exists(mapper, Author, pk=author.id.x, age=4) == true
+
+
     a = select_one(mapper, Author, id=999)
     @test isnothing(a)
     a = select_one(mapper, Author, id=id)
@@ -45,16 +64,16 @@ function _test_basic_functionalities(creator)
     a.name = "otro_pirulo"
     a.age = 5
     update!(mapper, a; fields=[:name])
-    a = select_one(mapper, Author, id=id)
-    @test a.name == "otro_pirulo"
-    @test a.age == 50
+    author = select_one(mapper, Author, id=id)
+    @test author.name == "otro_pirulo"
+    @test author.age == 50
 
-    a.name = "some_other_name"
-    a.age = 5
-    update!(mapper, a)
-    a = select_one(mapper, Author, id=id)
-    @test a.name == "some_other_name"
-    @test a.age == 5
+    author.name = "some_other_name"
+    author.age = 5
+    update!(mapper, author)
+    author = select_one(mapper, Author, id=id)
+    @test author.name == "some_other_name"
+    @test author.age == 5
 
     book = Book(id="super_string_id", author=author, 
                 data=Dict{String, Integer}("some_data"=>5))

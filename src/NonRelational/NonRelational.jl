@@ -50,33 +50,35 @@ function marshal(mapper::DBMapper, x::T) where T<:Model
     return d
 end
 
-
-
-
-
-
-function unmarshal(mapper::DBMapper, DT::Type, d::AbstractDict)
+function unmarshal(mapper::DBMapper, DT::Type, d::AbstractDict{K, T}; partial::Bool=false) where K <: AbstractString where T
+    d = Dict{Symbol, T}(zip(map(Symbol, collect(keys(d))), values(d)))
+    unmarshal(mapper, DT, d; partial=partial)
+end
+function unmarshal(mapper::DBMapper, DT::Type, d::AbstractDict{Symbol, T}; partial::Bool=false) where T
     out = Dict{Symbol, Any}()
     for iter in fieldnames(DT)
         DTNext = fieldtype(DT, iter)
-        if !haskey(d, string(iter))
+        if !haskey(d, iter)
             # check whether DTNext is compatible with any scheme for missing values
-            val = if DTNext <: Nullable
-                DTNext()
+            if DTNext <: Nullable
+                out[iter] = DTNext()
             elseif Missing <: DTNext
-                missing
+                out[iter] = missing
             elseif Nothing <: DTNext
-                Nothing()
+                out[iter] = Nothing()
             else
-                throw(ArgumentError("Key $(string(iter)) is missing from the structure $DT, and field is neither Nullable nor Missings nor Nothing-compatible"))
+                if !partial
+                    throw(ArgumentError("Key $(string(iter)) is missing from the structure $DT, and field is neither Nullable nor Missings nor Nothing-compatible"))
+                end
             end
         else
-            val = unmarshal(mapper, mapper.pool.dbtype, DTNext, d[string(iter)])
+            val = unmarshal(mapper, mapper.pool.dbtype, DTNext, d[iter])
+            out[iter] = val
         end
-        out[iter] = val        
     end
     return out
 end
+
 
 
 symboldict(d::Dict{AbstractString, T}) where T  = Dict{Symbol, Any}(Symbol(k)=>v for (k,v) in d)

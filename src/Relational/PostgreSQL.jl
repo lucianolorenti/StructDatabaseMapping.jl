@@ -59,6 +59,6 @@ function DBInterface.prepare(db::LibPQ.Connection, sql::AbstractString)
     s *= sql[i:end]
     return LibPQ.prepare(db, s)
 end
-DBInterface.execute(stmt::LibPQ.Statement, params::Array{Any,1}) = LibPQ.execute(stmt, params)
+DBInterface.execute(stmt::LibPQ.Statement, params::Array) = LibPQ.execute(stmt, params)
 DBInterface.lastrowid(r::LibPQ.Result) =  r[1,1]
 Base.getindex(row::LibPQ.Row, symbol::Symbol) = getproperty(row, symbol)
