@@ -12,6 +12,7 @@ end
 
 
 primary_key_type(dbtype::DataType, x) = x
+
 function create_table_field(mapper::DBMapper, field::Field, table::Table, dbtype::DataType) 
     field_name = "$(field.name)"
     if field.type <: ForeignKey
@@ -156,14 +157,16 @@ function totuple(mapper::DBMapper, table::Table, dbtype::DataType, db_results) :
     return results
 end
 
-escape_value(dbtype::DataType, x) = x
-escape_value(dbtype::DataType, x::AbstractString) = "\"$x\""
+function totuple(results) 
+    [(;(prop=>getindex(row, prop) for prop in propertynames(row))...) for row in results]
+end
 
 function select_one(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwargs...) 
     dbtype = mapper.pool.dbtype
     table = mapper.tables[T]
     cnames = join(column_names(mapper, T), ", ")
-    conditions = join(["$field=$(escape_value(dbtype, value))" for (field,value) in kwargs], " ")
+    conditions = join(["$field=?" for (field, value) in kwargs], " AND ")
+    values = [v[2] for v in kwargs]
     sql = clean_sql("""
     SELECT $cnames
     FROM $(table.name)
@@ -172,7 +175,8 @@ function select_one(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwar
     """)
     @info sql
     conn = get_connection(mapper.pool)
-    result = totuple(mapper, table, dbtype, DBInterface.execute(conn, sql))
+    stmt = DBInterface.prepare(conn, sql)
+    result = totuple(mapper, table, dbtype, DBInterface.execute(stmt, values))
     release_connection(mapper.pool, conn)
     if isempty(result)
         return nothing
@@ -209,4 +213,22 @@ function drop_table!(mapper::DBMapper, dbtype::Type{Relational}, T::Type{<:Model
     conn = get_connection(mapper.pool)
     result = DBInterface.execute(conn, sql)
     release_connection(mapper.pool, conn)    
+end
+
+function exists(mapper::DBMapper, dbtype::Type{Relational}, T::Type{<:Model}; kwargs...) :: Bool
+    table = mapper.tables[T]
+    conditions = join(["$field = ?" for (field, value) in kwargs], " AND ")
+    values = [v[2] for v in kwargs]
+    sql = """
+    SELECT COUNT(1) as count
+    FROM $(table.name)
+    WHERE $conditions
+    """
+    @info sql
+    conn = get_connection(mapper.pool)
+    stmt = DBInterface.prepare(conn, sql)
+    result = DBInterface.execute(stmt, [value for (f, value) in kwargs])
+    release_connection(mapper.pool, conn)  
+    result = result |> totuple
+    return result[1][:count]
 end
