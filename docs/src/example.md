@@ -77,6 +77,28 @@ println(a)
 a = select_one(mapper, Author, id=id)
 println(a)
 ```
+
+## Existence
+```@example code_1
+author = Author(name="Author 1", age=2)
+insert!(mapper, author)
+
+author = Author(name="Author 2", age=3)
+insert!(mapper, author)
+
+author = Author(name="Author 3", age=4)
+insert!(mapper, author)
+
+println(exists(mapper, Author, name="Enrique Banch"))
+println(exists(mapper, Author, name="pirulo"))
+println(exists(mapper, author))
+
+println(exists(mapper, Author, name="Author 3", age=4))
+println(exists(mapper, Author, name="Author 3", age=3))
+println(exists(mapper, Author, pk=author.id.x, age=3))
+println(exists(mapper, Author, pk=author.id.x, age=4))
+```
+
 ## Update 
 the function `update!` receives a named argument `fields` that indicates the fields to be updated
 ```@example code_1
