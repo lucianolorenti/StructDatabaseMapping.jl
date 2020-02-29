@@ -60,14 +60,19 @@ function update!(mapper::DBMapper, ::Type{Redis.RedisConnection}, elem::T; field
     result = Redis.hmset(conn, id, data)
     release_connection(mapper.pool, conn)    
 end
-function exists(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
-    
+
+function extract_id_from_kwargs(mapper::DBMapper, T::Type{<:Model}; kwargs...)
     id_f = idfield(mapper, T)
     params = Dict(kwargs...)
     id = nothing
     if haskey(params, id_f)
         id = redis_id(T, pop!(params, id_f))        
     end    
+    return (id, params)
+end
+
+function exists(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
+    (id, params) = extract_id_from_kwargs(mapper, T; kwargs...)
     # Query with id
     if id !== nothing 
         # Only id
@@ -104,4 +109,39 @@ function exists(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<
         release_connection(mapper.pool, conn) 
     end
     return false
+end
+
+function Base.delete!(mapper::DBMapper, ::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...) 
+    (id, params) = extract_id_from_kwargs(mapper, T; kwargs...)
+    if id !== nothing
+        if length(params) == 0
+            conn = get_connection(mapper.pool)                
+            result = Redis.del(conn, id)
+            release_connection(mapper.pool, conn) 
+        else
+            conn = get_connection(mapper.pool)    
+            params_key = collect(keys(params))
+            elem_values = Redis.hmget(conn, id, params_key...)
+            release_connection(mapper.pool, conn) 
+            elem = unmarshal(mapper, T, Dict(zip(params_key, elem_values)); partial=true)
+            if all([params[k] == elem[k] for k in params_key])
+                Redis.del(conn, id)
+            end
+        end
+    else
+        conn = get_connection(mapper.pool)        
+        cursor = -1
+        params_key = collect(keys(params))
+        while cursor != 0
+            (cursor, results) = Redis.scan(conn, cursor == -1 ? 0 : cursor, "match", redis_wildcard(T))
+            for elem_key in results
+                elem_values = Redis.hmget(conn, elem_key, params_key...)
+                elem = unmarshal(mapper, T, Dict(zip(params_key, elem_values)); partial=true)
+                if all([params[k] == elem[k] for k in params_key])                                    
+                    Redis.del(conn, elem_key)
+                end
+            end 
+            release_connection(mapper.pool, conn) 
+        end
+    end
 end

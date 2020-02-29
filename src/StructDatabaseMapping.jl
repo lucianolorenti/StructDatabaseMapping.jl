@@ -1,8 +1,10 @@
 module StructDatabaseMapping
+export select_one, update!, delete!, drop_table!, clean_table!,
+       update!, exists
+
 export DBMapper, register!, create_table, DBId, 
-       Nullable, analyze_relations, ForeignKey, select_one,
-       clean_table!, drop_table!, Model, getid, Foreign,
-       update!, exists, Cascade, SetNull, configure_relation,
+       Nullable, analyze_relations, ForeignKey,  Model, getid, Foreign,
+       Cascade, SetNull, configure_relation,
        Restrict
 
 using Dates
@@ -440,6 +442,18 @@ function exists(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...)
     exists(mapper, database_kind(dbtype), T; kwargs...)
 end
 
+"""
+    function delete_one!(mapper::DBMapper, T::Type{<:Model}; kwargs...) 
+
+Select one element of type 
+"""
+function Base.delete!(mapper::DBMapper, T::Type{<:Model}; kwargs...) 
+    check_valid_type(mapper, T)
+    return delete!(mapper, mapper.pool.dbtype, T; kwargs...)
+end
+function Base.delete!(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...) 
+    return delete!(mapper, database_kind(dbtype), T; kwargs...)
+end
 
 
 """

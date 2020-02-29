@@ -247,3 +247,20 @@ function exists(mapper::DBMapper, dbtype::Type{Relational}, T::Type{<:Model}; kw
     result = result |> totuple
     return result[1][:count]
 end
+
+function Base.delete!(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwargs...) 
+    dbtype = mapper.pool.dbtype
+    table = mapper.tables[T]
+    cnames = join(column_names(mapper, T), ", ")
+    conditions = join(["$field=?" for (field, value) in kwargs], " AND ")
+    values = [v[2] for v in kwargs]
+    sql = clean_sql("""
+    DELETE FROM $(table.name)
+    WHERE $(conditions)
+    """)
+    @info sql
+    conn = get_connection(mapper.pool)
+    stmt = DBInterface.prepare(conn, sql)
+    DBInterface.execute(stmt, values)
+    release_connection(mapper.pool, conn)    
+end
