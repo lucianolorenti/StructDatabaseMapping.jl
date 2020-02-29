@@ -25,7 +25,7 @@ function _test_basic_functionalities(creator)
 
     register!(mapper, Author)
     register!(mapper, Book)
-    
+    configure_relation(mapper, Book, :author, on_delete=Cascade())
     @test haskey(mapper.tables, Author)
     @test haskey(mapper.tables, Book)
 

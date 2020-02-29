@@ -32,19 +32,34 @@ function create_table_field(mapper::DBMapper, field::Field, table::Table, dbtype
 end
 
 
+
+
+on_event_action(t::OnEventAction) = throw("Not implemented")
+on_event_action(t::Cascade) = "CASCADE"
+on_event_action(t::DoNothing) = "NO ACTION"
+on_event_action(t::SetNull) = "SET NULL"
+on_event_action(t::Restrict) = "RESTRICT"
+
+function create_reference_field(r::Relation)
+    return strip("FOREIGN KEY($(r.local_field)) " * 
+            "REFERENCES $(r.referenced_table)($(r.referenced_field)) " *
+            "ON DELETE $(on_event_action(r.on_delete)) " *
+            "ON UPDATE $(on_event_action(r.on_update))")
+
+end
+
 function create_table_query(mapper::DBMapper, T::Type{<:Model}; if_not_exists::Bool=true) :: String
     if mapper.dirty == true 
         analyze_relations(mapper)
     end
     table = mapper.tables[T]
     create_table_fields = []
-    for field in table.fields        
+    for field in fieldlist(table)
         push!(create_table_fields, 
               create_table_field(mapper, field, table, mapper.pool.dbtype))
     end
     
-    foreign_keys = ["FOREIGN KEY($(r.local_field)) REFERENCES $(r.referenced_table)($(r.referenced_field))" 
-                    for r in values(table.relations)]
+    foreign_keys = [create_reference_field(r) for r in values(table.relations)]
     append!(create_table_fields, foreign_keys)
     
     create_table_fields = join(create_table_fields, ", ")
@@ -149,7 +164,7 @@ function totuple(mapper::DBMapper, table::Table, dbtype::DataType, db_results) :
         r = []
         db_data = Dict(field=>getindex(row, field) 
                       for field in propertynames(row))
-        for field in table.fields
+        for field in fieldlist(table)
             push!(r, field.struct_field=>unmarshal(mapper, dbtype, field.type, db_data[field.name]))
         end             
         push!(results, r)

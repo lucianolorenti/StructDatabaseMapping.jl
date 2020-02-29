@@ -2,7 +2,8 @@ module StructDatabaseMapping
 export DBMapper, register!, create_table, DBId, 
        Nullable, analyze_relations, ForeignKey, select_one,
        clean_table!, drop_table!, Model, getid, Foreign,
-       update!, exists
+       update!, exists, Cascade, SetNull, configure_relation,
+       Restrict
 
 using Dates
 using Requires
@@ -52,26 +53,42 @@ mutable struct Key
 end
 Key(f::Field; primary::Bool=false, auto_value::Bool=false) = Key([f], auto_value, primary)
 
+abstract type OnEventAction end 
+struct Cascade <: OnEventAction end
+struct Restrict <: OnEventAction end
+struct SetNull <: OnEventAction end
+struct SetDefault <: OnEventAction 
+    value
+end
+struct Set <: OnEventAction
+end
+struct DoNothing <: OnEventAction end
 
-struct Relation
+mutable struct Relation
     referenced_table::String
     referenced_field::Symbol
-    local_field::Symbol 
+    local_field::Symbol
+    on_delete::OnEventAction
+    on_update::OnEventAction
+end
+function Relation(referenced_table::String, referenced_field::Symbol, local_field::Symbol)
+    return Relation(referenced_table, referenced_field, local_field, DoNothing(), DoNothing())
 end
 
 mutable struct Table
     name::String
     data_type
-    fields::Array{Field}
+    fields::Dict{Symbol, Field}
     relations::Dict{Field, Relation}
     primary_key::Key
 end
 function idfield(t::Table)  :: Symbol
     return t.primary_key.field[1].name
 end
-
 isprimarykey(f::Field, t::Table) = t.primary_key.field[1] === f
-
+function fieldlist(t::Table)
+    return sort(collect(values(t.fields)), by=x->x.name)
+end
 
 mutable struct DBMapper
     tables::Dict{DataType, Table}
@@ -228,14 +245,14 @@ function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T 
     if table_name == ""
         table_name = String(split(lowercase(string(T)), ".")[end])
     end
-    fields = Field[]
+    fields = Dict{Symbol, Field}()
     primary_key = nothing
     for (field_name, field_type) in zip(fieldnames(d), fieldtypes(d))
         db_field = Field(field_name, field_type)
         if field_type <: DBId
             primary_key = Key(db_field; primary=true, auto_value=element_type(db_field.type) <: Integer)
         end
-        push!(fields, db_field)
+        fields[field_name] = db_field
     end
 
     table = Table(table_name,
@@ -255,7 +272,7 @@ After calling this function the mapper state is not dirty.
 """
 function analyze_relations(mapper::DBMapper)
     for table in values(mapper.tables)
-        for field in table.fields
+        for field in fieldlist(table)
             if field.type <: ForeignKey
                 referenced_table = mapper.tables[element_type(field.type)]
                 referenced_field = referenced_table.primary_key.field[1]
@@ -275,7 +292,7 @@ Return the table field names for a given struct.
 """
 function column_names(mapper::DBMapper, T::DataType) :: Array
     table = mapper.tables[T]
-    return map(field->field.name, table.fields)
+    return map(field->field.name, fieldlist(table))
 end
 
 """
@@ -286,7 +303,7 @@ Perhaps should be replaced directly with fieldnames
 """
 function struct_fields(mapper::DBMapper, T::DataType) :: Array{Symbol}
     table = mapper.tables[T]
-    return map(field->field.struct_field, table.fields)
+    return map(field->field.struct_field, fieldlist(table))
 end
 
 
@@ -297,8 +314,8 @@ normalize(dbtype, x::AbstractDict) where T = JSON.json(x)
 function struct_field_values(mapper, elem::T; ignore_primary_key::Bool=true, fields::Array{Symbol}=Symbol[]) where T
     table = mapper.tables[T]
     column_names = []
-    values = []
-    for field in table.fields
+    valuelist = []
+    for field in fieldlist(table)
         if length(fields) > 0 && !(field.struct_field in fields)
             continue
         end
@@ -311,9 +328,9 @@ function struct_field_values(mapper, elem::T; ignore_primary_key::Bool=true, fie
             continue
         end
         push!(column_names, field.name)
-        push!(values, normalize(mapper.pool.dbtype, getfield(elem, field.struct_field)))
+        push!(valuelist, normalize(mapper.pool.dbtype, getfield(elem, field.struct_field)))
     end
-    return (column_names, values)
+    return (column_names, valuelist)
 end
 
 
@@ -438,8 +455,13 @@ database_kind(c::Type{T}) where T = throw("Unknow database kind")
 
 
 
-function configure_relation(mapper::DBMapper, T::Type, field; on_delete=true)
-    table  = mapper.tables[T]
+function configure_relation(mapper::DBMapper, T::Type, field_name::Symbol; on_delete::OnEventAction=DoNothing(), on_update::OnEventAction=DoNothing())
+    if mapper.dirty == true
+        analyze_relations(mapper)
+    end
+    table = mapper.tables[T]
+    table.relations[table.fields[field_name]].on_delete = on_delete
+    table.relations[table.fields[field_name]].on_update = on_update
 end
 
 """

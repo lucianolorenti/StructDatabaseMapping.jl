@@ -30,19 +30,19 @@ function test_create_tables()
 
     register!(mapper, Author)
     register!(mapper, Book)
-
+    configure_relation(mapper, Book, :author, on_delete=Cascade())
     @test (StructDatabaseMapping.create_table_query(mapper, Author) 
     == "CREATE TABLE IF NOT EXISTS author (" *
-       "id SERIAL PRIMARY KEY, " *
-       "name VARCHAR NOT NULL, " *
        "age INTEGER NOT NULL, " *
-       "date TIMESTAMP NOT NULL)")
+       "date TIMESTAMP NOT NULL, " *
+       "id SERIAL PRIMARY KEY, " *
+       "name VARCHAR NOT NULL)")
     @test (StructDatabaseMapping.create_table_query(mapper, Book) 
      == "CREATE TABLE IF NOT EXISTS book (" *
-         "id VARCHAR PRIMARY KEY, " *
          "author_id INTEGER NOT NULL, " * 
          "data JSON NOT NULL, " *
-         "FOREIGN KEY(author_id) REFERENCES author(id))")
+         "id VARCHAR PRIMARY KEY, " *
+         "FOREIGN KEY(author_id) REFERENCES author(id) ON DELETE CASCADE ON UPDATE NO ACTION)")
 end
 function test()
     test_create_tables()
