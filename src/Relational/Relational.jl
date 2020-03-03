@@ -13,13 +13,13 @@ end
 
 primary_key_type(dbtype::DataType, x) = x
 
-function create_table_field(mapper::DBMapper, field::Field, table::Table, dbtype::DataType) 
+function create_table_field(mapper::DBMapper, field::Field, table::Table, dbtype::DataType)
     field_name = "$(field.name)"
     if field.type <: ForeignKey
         referenced_table = mapper.tables[element_type(field.type)]
         referenced_field = referenced_table.primary_key.field[1]
         db_field_type = string(database_column_type(dbtype, element_type(referenced_field.type)))
-    elseif field.type <: DBId 
+    elseif field.type <: DBId
         pk_type = primary_key_type(dbtype, element_type(field.type))
         db_type = database_column_type(dbtype, pk_type)
         db_field_type = string(db_type)
@@ -41,7 +41,7 @@ on_event_action(t::SetNull) = "SET NULL"
 on_event_action(t::Restrict) = "RESTRICT"
 
 function create_reference_field(r::Relation)
-    return strip("FOREIGN KEY($(r.local_field)) " * 
+    return strip("FOREIGN KEY($(r.local_field)) " *
             "REFERENCES $(r.referenced_table)($(r.referenced_field)) " *
             "ON DELETE $(on_event_action(r.on_delete)) " *
             "ON UPDATE $(on_event_action(r.on_update))")
@@ -49,19 +49,19 @@ function create_reference_field(r::Relation)
 end
 
 function create_table_query(mapper::DBMapper, T::Type{<:Model}; if_not_exists::Bool=true) :: String
-    if mapper.dirty == true 
+    if mapper.dirty == true
         analyze_relations(mapper)
     end
     table = mapper.tables[T]
     create_table_fields = []
     for field in fieldlist(table)
-        push!(create_table_fields, 
+        push!(create_table_fields,
               create_table_field(mapper, field, table, mapper.pool.dbtype))
     end
-    
+
     foreign_keys = [create_reference_field(r) for r in values(table.relations)]
     append!(create_table_fields, foreign_keys)
-    
+
     create_table_fields = join(create_table_fields, ", ")
     if_not_exists_str = if_not_exists ? "IF NOT EXISTS" : ""
     return clean_sql("""CREATE TABLE $if_not_exists_str $(table.name) ($create_table_fields)""")
@@ -83,7 +83,7 @@ insert_query(table::Table, column_names::Array, dbtype) = insert_query(table, co
 
 function insert_query(table::Table, column_names::Array)
     values_placeholder = join(repeat(['?'], length(column_names)), ",")
-    column_names = join(column_names, ",")    
+    column_names = join(column_names, ",")
     sql = """
 INSERT INTO $(table.name) ($column_names)
 VALUES ($values_placeholder)
@@ -104,7 +104,7 @@ function insert!(mapper::DBMapper, dbtype::Type{Relational}, elem::T) where T<:M
     sql = insert_query(table, column_names, mapper.pool.dbtype)
     @info sql
     conn = get_connection(mapper.pool)
-    stmt = DBInterface.prepare(conn, sql) 
+    stmt = DBInterface.prepare(conn, sql)
     result = DBInterface.execute(stmt, values)
     id = DBInterface.lastrowid(result)
     release_connection(mapper.pool, conn)
@@ -118,12 +118,12 @@ end
 
 update_query(table::Table, column_names::Array, dbtype) = update_query(table, column_names)
 
-function update_query(table::Table, column_names::Array)    
-    column_names = join(map(cname->"$cname=?", column_names), ",")    
+function update_query(table::Table, column_names::Array)
+    column_names = join(map(cname->"$cname=?", column_names), ",")
     sql = """
     UPDATE $(table.name)
     SET $column_names
-    WHERE 
+    WHERE
     $(idfield(table)) = ?
     """
     return clean_sql(sql)
@@ -146,7 +146,7 @@ function update!(mapper::DBMapper, dbtype::Type{Relational}, elem::T; fields::Ar
     push!(values, id)
     @info sql
     conn = get_connection(mapper.pool)
-    stmt = DBInterface.prepare(conn, sql) 
+    stmt = DBInterface.prepare(conn, sql)
     result = DBInterface.execute(stmt, values)
     release_connection(mapper.pool, conn)
     return elem
@@ -162,41 +162,64 @@ function totuple(mapper::DBMapper, table::Table, dbtype::DataType, db_results) :
     results = []
     for row in db_results
         r = []
-        db_data = Dict(field=>getindex(row, field) 
+        db_data = Dict(field=>getindex(row, field)
                       for field in propertynames(row))
         for field in fieldlist(table)
             push!(r, field.struct_field=>unmarshal(mapper, dbtype, field.type, db_data[field.name]))
-        end             
+        end
         push!(results, r)
     end
     return results
 end
 
-function totuple(results) 
+function totuple(results)
     [(;(prop=>getindex(row, prop) for prop in propertynames(row))...) for row in results]
 end
 
-function select_one(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwargs...) 
+function select_query(mapper::DBMapper, T::Type{<:Model}; select_one=true, kwargs...)
     dbtype = mapper.pool.dbtype
     table = mapper.tables[T]
     cnames = join(column_names(mapper, T), ", ")
     conditions = join(["$field=?" for (field, value) in kwargs], " AND ")
-    values = [v[2] for v in kwargs]
-    sql = clean_sql("""
+    sql = """
     SELECT $cnames
     FROM $(table.name)
     WHERE $(conditions)
-    LIMIT 1
-    """)
+    """
+    if select_one
+        sql *= " LIMIT 1"
+    end
+    return clean_sql(sql)
+end
+
+function select(mapper::DBMapper, T::Type{<:Model}; select_one=true, kwargs...)
+    dbtype = mapper.pool.dbtype
+    table = mapper.tables[T]
+    sql = select_query(mapper, T; select_one=select_one, kwargs...)
+    values = [v[2] for v in kwargs]
     @info sql
     conn = get_connection(mapper.pool)
     stmt = DBInterface.prepare(conn, sql)
     result = totuple(mapper, table, dbtype, DBInterface.execute(stmt, values))
     release_connection(mapper.pool, conn)
+    return result
+end
+
+function select_one(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwargs...)
+    result = select(mapper, T; select_one=true, kwargs...)
     if isempty(result)
         return nothing
     else
         return T(;result[1]...)
+    end
+end
+
+function select_all(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwargs...) :: Array{T}
+    result = select(mapper, T; select_one=false, kwargs...)
+    if isempty(result)
+        return T[]
+    else
+        return [T(;r...) for r in result]
     end
 end
 
@@ -212,7 +235,7 @@ function clean_table!(mapper::DBMapper, dbtype::Type{Relational}, T::Type{<:Mode
     sql = clean_table_query(table, mapper.pool.dbtype)
     conn = get_connection(mapper.pool)
     result = DBInterface.execute(conn, sql)
-    release_connection(mapper.pool, conn)    
+    release_connection(mapper.pool, conn)
 end
 
 drop_table_query(table::Table,  dbtype) = drop_table_query(table)
@@ -227,10 +250,10 @@ function drop_table!(mapper::DBMapper, dbtype::Type{Relational}, T::Type{<:Model
     @info sql
     conn = get_connection(mapper.pool)
     result = DBInterface.execute(conn, sql)
-    release_connection(mapper.pool, conn)    
+    release_connection(mapper.pool, conn)
 end
 
-function exists(mapper::DBMapper, dbtype::Type{Relational}, T::Type{<:Model}; kwargs...) :: Bool
+function exists(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwargs...) :: Bool
     table = mapper.tables[T]
     conditions = join(["$field = ?" for (field, value) in kwargs], " AND ")
     values = [v[2] for v in kwargs]
@@ -243,12 +266,12 @@ function exists(mapper::DBMapper, dbtype::Type{Relational}, T::Type{<:Model}; kw
     conn = get_connection(mapper.pool)
     stmt = DBInterface.prepare(conn, sql)
     result = DBInterface.execute(stmt, [value for (f, value) in kwargs])
-    release_connection(mapper.pool, conn)  
+    release_connection(mapper.pool, conn)
     result = result |> totuple
-    return result[1][:count]
+    return result[1][:count] > 0
 end
 
-function Base.delete!(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwargs...) 
+function Base.delete!(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwargs...)
     dbtype = mapper.pool.dbtype
     table = mapper.tables[T]
     cnames = join(column_names(mapper, T), ", ")
@@ -262,5 +285,6 @@ function Base.delete!(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kw
     conn = get_connection(mapper.pool)
     stmt = DBInterface.prepare(conn, sql)
     DBInterface.execute(stmt, values)
-    release_connection(mapper.pool, conn)    
+    release_connection(mapper.pool, conn)
 end
+

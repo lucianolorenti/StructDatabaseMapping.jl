@@ -1,8 +1,8 @@
 module StructDatabaseMapping
 export select_one, update!, delete!, drop_table!, clean_table!,
-       update!, exists
+       update!, exists, select_all
 
-export DBMapper, register!, create_table, DBId, 
+export DBMapper, register!, create_table, DBId,
        Nullable, analyze_relations, ForeignKey,  Model, getid, Foreign,
        Cascade, SetNull, configure_relation,
        Restrict
@@ -37,12 +37,12 @@ function Field(name::Symbol, type::Type)
     primary_key = false
     nullable = false
     db_field_name = name
-    if type <: ForeignKey        
+    if type <: ForeignKey
         db_field_name = Symbol(string(db_field_name) * "_id")
     elseif type <: AbstractNullable
         nullable = true
     end
-    
+
     return Field(db_field_name, name, type, nullable, primary_key)
 end
 
@@ -55,11 +55,11 @@ mutable struct Key
 end
 Key(f::Field; primary::Bool=false, auto_value::Bool=false) = Key([f], auto_value, primary)
 
-abstract type OnEventAction end 
+abstract type OnEventAction end
 struct Cascade <: OnEventAction end
 struct Restrict <: OnEventAction end
 struct SetNull <: OnEventAction end
-struct SetDefault <: OnEventAction 
+struct SetDefault <: OnEventAction
     value
 end
 struct Set <: OnEventAction
@@ -96,7 +96,7 @@ mutable struct DBMapper
     tables::Dict{DataType, Table}
     pool::ConnectionPool
     dirty::Bool
-    function DBMapper(database_builder::Function) 
+    function DBMapper(database_builder::Function)
         return new(Dict{DataType,Table}(), SimplePool(database_builder), false)
     end
 end
@@ -174,7 +174,7 @@ end
 """
     idfieldtype(::Type{T}, mapper::DBMapper) where T<:Model
 
-Obtain the general id field type for a given type 
+Obtain the general id field type for a given type
 for a field with type DBId{Integer} should return DBId{Integer}
 """
 idfieldtype(::Type{T}, mapper::DBMapper) where T<:Model =  fieldtype(T, idfield(mapper, T))
@@ -182,7 +182,7 @@ idfieldtype(::Type{T}, mapper::DBMapper) where T<:Model =  fieldtype(T, idfield(
 """
     function idtype(::Type{T}, mapper::DBMapper) where T<:Model
 
-Obtain the element type of the identifier field for a given type 
+Obtain the element type of the identifier field for a given type
 For a field with type DBId{Integer} should return Integer
 """
 function idtype(::Type{T}, mapper::DBMapper) where T<:Model
@@ -198,7 +198,7 @@ Foreign Key model field
 
 The foreign key field can be constructed with the T element
 or with nothing. The `loaded` field is used in the lazy loading of the foreign
-element. When the foreign element is loaded the `loaded` attributed is set 
+element. When the foreign element is loaded the `loaded` attributed is set
 to true
 
 ```
@@ -219,7 +219,7 @@ end
 function ForeignKey{T}(data::Union{T,Nothing}) where T<:Model
     return ForeignKey{T}(data, true)
 end
-const Foreign{T} = Union{T, ForeignKey{T}} 
+const Foreign{T} = Union{T, ForeignKey{T}}
 
 function Base.get(v::ForeignKey{T}, mapper::DBMapper) where T
     if v.loaded
@@ -239,7 +239,7 @@ end
     function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T <: Model
 
 Register an element of type T into the mapper.
-A Table type is created for the given Model and is stored in the dabase. This function must be called 
+A Table type is created for the given Model and is stored in the dabase. This function must be called
 for each type you want to use with this library.
 """
 function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T <: Model
@@ -270,7 +270,7 @@ end
 
 Updates the relations dict of each table.
 
-After calling this function the mapper state is not dirty. 
+After calling this function the mapper state is not dirty.
 """
 function analyze_relations(mapper::DBMapper)
     for table in values(mapper.tables)
@@ -290,7 +290,7 @@ end
 """
     function column_names(mapper::DBMapper, T::DataType) :: Array
 
-Return the table field names for a given struct. 
+Return the table field names for a given struct.
 """
 function column_names(mapper::DBMapper, T::DataType) :: Array
     table = mapper.tables[T]
@@ -300,7 +300,7 @@ end
 """
     function struct_fields(mapper::DBMapper, T::DataType) :: Array{Symbol}
 
-Return the field names for a given struct. 
+Return the field names for a given struct.
 Perhaps should be replaced directly with fieldnames
 """
 function struct_fields(mapper::DBMapper, T::DataType) :: Array{Symbol}
@@ -326,7 +326,7 @@ function struct_field_values(mapper, elem::T; ignore_primary_key::Bool=true, fie
         end
         field_value = getfield(elem, field.struct_field)
 
-        if (field.nullable == true) && !has_value(field_value) 
+        if (field.nullable == true) && !has_value(field_value)
             continue
         end
         push!(column_names, field.name)
@@ -342,7 +342,7 @@ function check_valid_type(mapper::DBMapper, T::DataType)
     if !haskey(mapper.tables, T)
         throw("Invalid type")
     end
-    if mapper.dirty == true 
+    if mapper.dirty == true
         analyze_relations(mapper)
     end
 end
@@ -355,9 +355,9 @@ Create the table for the given model
 """
 function create_table(mapper::DBMapper, T::Type{<:Model}; if_not_exists::Bool=true)
     check_valid_type(mapper, T)
-    create_table(mapper, mapper.pool.dbtype, T; if_not_exists=if_not_exists)    
+    create_table(mapper, mapper.pool.dbtype, T; if_not_exists=if_not_exists)
 end
-function create_table(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; if_not_exists::Bool=true) 
+function create_table(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; if_not_exists::Bool=true)
     create_table(mapper, database_kind(dbtype), T; if_not_exists=if_not_exists)
 end
 
@@ -378,15 +378,15 @@ function update!(mapper::DBMapper, dbtype::DataType, elem::T; fields::Array{Symb
 end
 
 """
-    function select_one(mapper::DBMapper, T::Type{<:Model}; kwargs...) 
+    function select_one(mapper::DBMapper, T::Type{<:Model}; kwargs...)
 
-Select one element of type 
+Select one element of type
 """
-function select_one(mapper::DBMapper, T::Type{<:Model}; kwargs...) 
+function select_one(mapper::DBMapper, T::Type{<:Model}; kwargs...)
     check_valid_type(mapper, T)
     return select_one(mapper, mapper.pool.dbtype, T; kwargs...)
 end
-function select_one(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...) 
+function select_one(mapper::DBMapper, dbtype, T::Type{<:Model}; kwargs...)
     return select_one(mapper, database_kind(dbtype), T; kwargs...)
 end
 
@@ -422,10 +422,10 @@ end
     function exists(mapper::DBMapper, T::DataType; kwargs...)
 
 Return wether the element exists.
-The param pk cand be used as generic way to identify the primary key 
+The param pk cand be used as generic way to identify the primary key
 of the struct
 """
-function exists(mapper::DBMapper, T::DataType; kwargs...) :: Bool
+function exists(mapper::DBMapper, T::Type{<:Model}; kwargs...) :: Bool
     check_valid_type(mapper, T)
     params = Dict(kwargs...)
     if haskey(params, :pk)
@@ -438,23 +438,37 @@ function exists(mapper::DBMapper, elem::T) where T<:Model
     check_valid_type(mapper, T)
     return exists(mapper, T; pk=getid(elem, mapper))
 end
-function exists(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...)
+function exists(mapper::DBMapper, dbtype, T::Type{<:Model}; kwargs...)
     exists(mapper, database_kind(dbtype), T; kwargs...)
 end
 
 """
-    function delete_one!(mapper::DBMapper, T::Type{<:Model}; kwargs...) 
+    function delete_one!(mapper::DBMapper, T::Type{<:Model}; kwargs...)
 
-Select one element of type 
+Select one element of type
 """
-function Base.delete!(mapper::DBMapper, T::Type{<:Model}; kwargs...) 
+function Base.delete!(mapper::DBMapper, T::Type{<:Model}; kwargs...)
     check_valid_type(mapper, T)
     return delete!(mapper, mapper.pool.dbtype, T; kwargs...)
 end
-function Base.delete!(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...) 
+function Base.delete!(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...)
     return delete!(mapper, database_kind(dbtype), T; kwargs...)
 end
+function Base.delete!(mapper::DBMapper, elem::T) where T<:Model
+    check_valid_type(mapper, T)
+    return delete!(mapper, T; pk=getid(elem, mapper))
+end
 
+"""
+    select_all(mapper::DBMapper, T::Type{<:Model}; kwargs...)
+"""
+function select_all(mapper::DBMapper, T::Type{<:Model}; kwargs...)
+    check_valid_type(mapper, T)
+    return select_all(mapper, mapper.pool.dbtype, T; kwargs...)
+end
+function select_all(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...)
+    return select_all(mapper, database_kind(dbtype), T; kwargs...)
+end
 
 """
     database_kind(c::Type{T})
@@ -489,13 +503,13 @@ element_type(x::DataType) = x
 element_type(data::Type{<:AbstractNullable{T}}) where T = T
 element_type(x::Type{<:AbstractDict}) = Dict
 
-""" 
+"""
     unmarshal(mapper::DBMapper, dbtype::DataType, dest::Type, orig)
 
 Convert data obtained form the database to the julia representation.
-It has three level of dispatch, the database specific, the database kind specific and 
+It has three level of dispatch, the database specific, the database kind specific and
 the type specific.
-Return the orig element converted to the dest type. The dest type is usually obtained 
+Return the orig element converted to the dest type. The dest type is usually obtained
 from the struct fields.
 """
 unmarshal(mapper::DBMapper, dbtype::DataType, dest::Type, orig) = unmarshal(mapper, database_kind(dbtype), dest, orig)
@@ -518,22 +532,22 @@ unmarshal(::Type{DBId{T}}, x::String) where T<:AbstractString = x
 
 
 function __init__()
-  
-    @require DBInterface="a10d1c49-ce27-4219-8d33-6db1a4562965" begin       
-        include(joinpath(@__DIR__, "Relational", "Relational.jl"))  
+
+    @require DBInterface="a10d1c49-ce27-4219-8d33-6db1a4562965" begin
+        include(joinpath(@__DIR__, "Relational", "Relational.jl"))
     end
     @require SQLite="0aa819cd-b072-5ff4-a722-6bc24af294d9" begin
-        include(joinpath(@__DIR__, "Relational", "SQLite.jl"))        
-        
-    end        
-    @require LibPQ="194296ae-ab2e-5f79-8cd4-7183a0a5a0d1" begin 
+        include(joinpath(@__DIR__, "Relational", "SQLite.jl"))
+
+    end
+    @require LibPQ="194296ae-ab2e-5f79-8cd4-7183a0a5a0d1" begin
         include(joinpath(@__DIR__,  "Relational", "PostgreSQL.jl"))
     end
-    @require Redis="0cf705f9-a9e2-50d1-a699-2b372a39b750" begin 
+    @require Redis="0cf705f9-a9e2-50d1-a699-2b372a39b750" begin
         include(joinpath(@__DIR__, "NonRelational", "Redis.jl"))
         include(joinpath(@__DIR__, "NonRelational", "NonRelational.jl"))
     end
-    
+
 end
 
 end # module

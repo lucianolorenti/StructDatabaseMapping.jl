@@ -35,6 +35,7 @@ function test_create_tables()
          "author_id INTEGER NOT NULL, " * 
          "data JSON NOT NULL, " *
          "id VARCHAR PRIMARY KEY, " *
+         "title VARCHAR NOT NULL, "*
          "FOREIGN KEY(author_id) REFERENCES author(id) ON DELETE CASCADE ON UPDATE NO ACTION)")
     configure_relation(mapper, Book, :author, on_delete=Restrict(), on_update=Cascade())
     @test (StructDatabaseMapping.create_table_query(mapper, Book) 
@@ -42,6 +43,7 @@ function test_create_tables()
          "author_id INTEGER NOT NULL, " * 
          "data JSON NOT NULL, " *
          "id VARCHAR PRIMARY KEY, " *
+         "title VARCHAR NOT NULL, " *
          "FOREIGN KEY(author_id) REFERENCES author(id) ON DELETE RESTRICT ON UPDATE CASCADE)")
 end
 function test_sqlite()
