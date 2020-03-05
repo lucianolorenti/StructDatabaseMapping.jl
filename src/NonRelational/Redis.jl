@@ -11,7 +11,7 @@ function insert!(mapper::DBMapper, ::Type{Redis.RedisConnection}, elem::T)  wher
     end
     id = redis_id(T, getid(elem, mapper))
     result = Redis.hmset(conn, id, marshal(mapper, elem))
-    release_connection(mapper.pool, conn)    
+    release_connection(mapper.pool, conn)
 end
 
 function select_one(mapper::DBMapper, ::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
@@ -20,7 +20,7 @@ function select_one(mapper::DBMapper, ::Type{Redis.RedisConnection}, T::Type{<:M
     id = params[id_field]
     conn = get_connection(mapper.pool)
     result = Redis.hgetall(conn, redis_id(T, id))
-    release_connection(mapper.pool, conn) 
+    release_connection(mapper.pool, conn)
     if isempty(result)
         return nothing
     else
@@ -36,11 +36,11 @@ function clean_table!(mapper::DBMapper, ::Type{Redis.RedisConnection}, elem::Typ
         (cursor, results) = Redis.scan(conn, cursor, "match", redis_wildcard(T))
         Redis.unlik(conn, keys...)
     end
-    release_connection(mapper.pool, conn)    
+    release_connection(mapper.pool, conn)
 end
 
 function drop_table!(::DBMapper, ::Type{Redis.RedisConnection}, elem::Type{T})  where T<:Model
-    
+
 end
 function update!(mapper::DBMapper, ::Type{Redis.RedisConnection}, elem::T; fields::Array{Symbol}=Symbol[])  where T<:Model
     id = getid(elem, mapper)
@@ -49,59 +49,119 @@ function update!(mapper::DBMapper, ::Type{Redis.RedisConnection}, elem::T; field
     end
     data = marshal(mapper, elem)
     if length(fields) > 0
-        for f in keys(data) 
+        for f in keys(data)
             if !(f in fields)
-                pop!(data, f)        
+                pop!(data, f)
             end
         end
     end
     id = redis_id(T, id)
-    conn = get_connection(mapper.pool)    
+    conn = get_connection(mapper.pool)
     result = Redis.hmset(conn, id, data)
-    release_connection(mapper.pool, conn)    
+    release_connection(mapper.pool, conn)
 end
-function exists(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
-    
+
+function extract_id_from_kwargs(mapper::DBMapper, T::Type{<:Model}; kwargs...)
     id_f = idfield(mapper, T)
     params = Dict(kwargs...)
     id = nothing
     if haskey(params, id_f)
-        id = redis_id(T, pop!(params, id_f))        
-    end    
+        id = redis_id(T, pop!(params, id_f))
+    end
+    return (id, params)
+end
+
+function select_by_key_and_params(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}, pk, params)
+    conn = get_connection(mapper.pool)
+    params_key = collect(keys(params))
+    elem_values = Redis.hmget(conn, pk, params_key...)
+    release_connection(mapper.pool, conn)
+    return unmarshal(mapper, T, Dict(zip(params_key, elem_values)); partial=true)
+end
+
+function iterate_all(mapper::DBMapper,  dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}, params, f)
+    conn = get_connection(mapper.pool)
+    cursor = -1
+    params_key = collect(keys(params))
+    while cursor != 0
+        (cursor, results) = Redis.scan(conn, cursor == -1 ? 0 : cursor, "match", redis_wildcard(T))
+        for elem_key in results
+            elem_values = Redis.hmget(conn, elem_key, params_key...)
+            elem = unmarshal(mapper, T, Dict(zip(params_key, elem_values)); partial=true)
+            ret = f(elem_key, elem, params, params_key)        
+            if (typeof(ret) <: Bool && ret == true) || (!(typeof(ret) <: Bool) && ret !== nothing)
+                release_connection(mapper.pool, conn)
+                return ret
+            end
+        end
+    end
+    release_connection(mapper.pool, conn)
+end
+
+function exists(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
+    (id, params) = extract_id_from_kwargs(mapper, T; kwargs...)
     # Query with id
-    if id !== nothing 
+    if id !== nothing
         # Only id
         if length(params) == 0
-            conn = get_connection(mapper.pool)                
+            conn = get_connection(mapper.pool)
             result = Redis.exists(conn, id)
-            release_connection(mapper.pool, conn)    
+            release_connection(mapper.pool, conn)
             return result
-        else 
+        else
             # ID & fields
-            conn = get_connection(mapper.pool)    
-            params_key = collect(keys(params))
-            elem_values = Redis.hmget(conn, id, params_key...)
-            release_connection(mapper.pool, conn) 
-            elem = unmarshal(mapper, T, Dict(zip(params_key, elem_values)); partial=true)
-            return all([params[k] == elem[k] for k in params_key])
+            elem = select_by_key_and_params(mapper, dbtype, T, id, params)            
+            return all([params[k] == elem[k] for k in keys(params)])
         end
-    else 
-        conn = get_connection(mapper.pool)        
-        cursor = -1
-        params_key = collect(keys(params))
-        while cursor != 0
-            (cursor, results) = Redis.scan(conn, cursor == -1 ? 0 : cursor, "match", redis_wildcard(T))
-            for elem_key in results
-                elem_values = Redis.hmget(conn, elem_key, params_key...)
-                elem = unmarshal(mapper, T, Dict(zip(params_key, elem_values)); partial=true)
-                found = all([params[k] == elem[k] for k in params_key])
-                if found
-                    release_connection(mapper.pool, conn) 
-                    return found
-                end
-            end 
+    else
+        found = (elem_id, elem, params, params_key)->all([params[k] == elem[k] for k in params_key])
+        ret = iterate_all(mapper, dbtype, T, params, found)
+        if ret !== nothing 
+            return ret
         end
-        release_connection(mapper.pool, conn) 
     end
     return false
+end
+
+function Base.delete!(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
+    (id, params) = extract_id_from_kwargs(mapper, T; kwargs...)
+    if id !== nothing
+        if length(params) == 0
+            conn = get_connection(mapper.pool)
+            result = Redis.del(conn, id)
+            release_connection(mapper.pool, conn)
+        else
+            elem = select_by_key_and_params(mapper, dbtype, T, id, params)
+            if all([params[k] == elem[k] for k in keys(params)])
+                Redis.del(conn, id)
+            end
+        end
+    else
+        all_keys_to_delete = []
+        add_keys = (elem_key, elem, params, params_key)->begin
+            if all([params[k] == elem[k] for k in params_key])
+                push!(all_keys_to_delete, elem_key)
+            end
+            return nothing
+        end
+        ret = iterate_all(mapper, dbtype, T, params, add_keys)
+        conn = get_connection(mapper.pool)
+        for elem_key in all_keys_to_delete
+            Redis.del(conn, elem_key)
+        end
+        release_connection(mapper.pool, conn)
+    end
+end
+
+function select_all(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
+    params = Dict(kwargs...)
+    all_elems = []
+    found = (elem_key, elem, params, params_key)->begin
+        if all([params[k] == elem[k] for k in params_key])
+            push!(all_elems, elem)
+        end
+        return nothing
+    end
+    ret = iterate_all(mapper, dbtype, T, params, found)
+    return all_elems
 end

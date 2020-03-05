@@ -52,6 +52,8 @@ mapper = DBMapper(creator)
 register!(mapper, Author)
 register!(mapper, Book)
 
+configure_relation(mapper, Book, :author, on_delete=Cascade())
+
 @test haskey(mapper.tables, Author)
 @test haskey(mapper.tables, Book)
 
@@ -132,6 +134,12 @@ println(book)
 ```@example code_1
 book = select_one(mapper, Book, id="super_string_id")
 println(book)
+```
+
+# Delete
+```@example code_1
+book = select_one(mapper, Book, id="super_string_id")
+delete!(mapper, book)
 ```
 
 # Removing tables

@@ -23,19 +23,28 @@ function test_create_tables()
 
     register!(mapper, Author)
     register!(mapper, Book)
-
+    configure_relation(mapper, Book, :author, on_delete=Cascade())
     @test (StructDatabaseMapping.create_table_query(mapper, Author) 
     == "CREATE TABLE IF NOT EXISTS author (" *
-       "id INTEGER PRIMARY KEY, " *
-       "name VARCHAR NOT NULL, " *
        "age INTEGER NOT NULL, " *
-       "date DATETIME NOT NULL)")
+       "date DATETIME NOT NULL, " *
+       "id INTEGER PRIMARY KEY, " *
+       "name VARCHAR NOT NULL)")
     @test (StructDatabaseMapping.create_table_query(mapper, Book) 
      == "CREATE TABLE IF NOT EXISTS book (" *
-         "id VARCHAR PRIMARY KEY, " *
          "author_id INTEGER NOT NULL, " * 
          "data JSON NOT NULL, " *
-         "FOREIGN KEY(author_id) REFERENCES author(id))")
+         "id VARCHAR PRIMARY KEY, " *
+         "title VARCHAR NOT NULL, "*
+         "FOREIGN KEY(author_id) REFERENCES author(id) ON DELETE CASCADE ON UPDATE NO ACTION)")
+    configure_relation(mapper, Book, :author, on_delete=Restrict(), on_update=Cascade())
+    @test (StructDatabaseMapping.create_table_query(mapper, Book) 
+     == "CREATE TABLE IF NOT EXISTS book (" *
+         "author_id INTEGER NOT NULL, " * 
+         "data JSON NOT NULL, " *
+         "id VARCHAR PRIMARY KEY, " *
+         "title VARCHAR NOT NULL, " *
+         "FOREIGN KEY(author_id) REFERENCES author(id) ON DELETE RESTRICT ON UPDATE CASCADE)")
 end
 function test_sqlite()
    

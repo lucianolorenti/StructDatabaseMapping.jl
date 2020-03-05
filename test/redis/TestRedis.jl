@@ -12,17 +12,15 @@ include("../includes/basic_test.jl")
 function test()
     test_redis()
 end
+params = (host=get(ENV, "REDIS_HOST", "localhost"),
+          db=DB_NUMBER,
+          port=parse(Int64, get(ENV, "REDIS_PORT", "6379")))
 function cleanup()
-    try
-      
-    catch
-    end
+    Redis.flushall(
+        Redis.RedisConnection(;params...))
 end
 function test_redis()
-    f = ()->Redis.RedisConnection(
-        host=get(ENV, "REDIS_HOST", "localhost"),
-        db=DB_NUMBER,
-        port=parse(Int64, get(ENV, "REDIS_PORT", "6379")))
+    f = ()->Redis.RedisConnection(;params...)
     _test_basic_functionalities(f)
 end
 

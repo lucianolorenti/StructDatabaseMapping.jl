@@ -20,9 +20,8 @@ end
     
     try
         TestRedis.test()
-    catch e
+    finally 
         TestRedis.cleanup()
-        rethrow(e)
     end  
     Pkg.rm("Redis") 
 end
@@ -34,9 +33,8 @@ end
     try
         TestSQLite.test()
         TestSQLite.test_cleanup()
-    catch e
+    finally
         TestSQLite.cleanup()
-        rethrow(e)
     end
     Pkg.rm("SQLite")
 end
@@ -45,9 +43,8 @@ end
     include(joinpath(@__DIR__, "postgresql",  "TestLibPQ.jl"))
     try
         TestLibPQ.test()
-    catch e
+    finally
         TestLibPQ.cleanup()
-        rethrow(e)
     end  
     Pkg.rm("LibPQ")
 end
