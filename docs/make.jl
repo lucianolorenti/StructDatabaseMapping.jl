@@ -2,6 +2,7 @@ using Documenter, StructDatabaseMapping
 
 makedocs(sitename="Struct Database Mapping",
         format = Documenter.HTML(prettyurls = false),
+        modules = [StructDatabaseMapping],
          pages = [ 
             "Home" => "index.md",
             "Api" => "api.md",
