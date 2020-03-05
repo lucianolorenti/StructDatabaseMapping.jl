@@ -120,10 +120,14 @@ function _test_basic_functionalities(creator)
     @test get(a.author, mapper).name == "some_other_name"
     @test a.data["some_data"] == 5
 
+    book = select_one(mapper, Book, id="super_string_id")
+    delete!(mapper, book)
+
     author = select_one(mapper, Author, id=id)
     @test author.name == "some_other_name"
     @test author.age == 5
     delete!(mapper, Author, name="some_other_name")
+
     author = select_one(mapper, Author, id=id)
     @test isnothing(author)
 

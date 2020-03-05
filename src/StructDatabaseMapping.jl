@@ -361,6 +361,20 @@ function create_table(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; if_n
     create_table(mapper, database_kind(dbtype), T; if_not_exists=if_not_exists)
 end
 
+"""
+    function insert!(mapper::DBMapper, elem::T) where T <: Model
+
+Insert the element in the database 
+
+# Arguments
+- `mapper::DBMapper`: The database mapper
+- `elem::T where T<:Model`: Instantied model to insert
+        
+```
+struct Author <: Model ... end
+insert!(mapper, Author(name="some name", age=30))       
+```
+"""
 function insert!(mapper::DBMapper, elem::T) where T <: Model
     check_valid_type(mapper, T)
     insert!(mapper, mapper.pool.dbtype, elem)
@@ -369,6 +383,23 @@ function insert!(mapper::DBMapper, dbtype::DataType, elem::T) where T <: Model
     insert!(mapper, database_kind(dbtype), elem)
 end
 
+"""
+    function update!(mapper::DBMapper, elem::T; fields::Array{Symbol}=Symbol[]) where T<:Model
+
+Insert the element in the database 
+
+# Arguments
+- `mapper::DBMapper`: The database mapper
+- `elem::T where T<:Model`: Instantied model to insert
+- `fields::Array{Symbol}`: Optional. Array of fields to update.
+        
+```
+struct Author <: Model ... end
+author = Author(name="some name", age=30)
+update!(mapper, author)       
+update!(mapper, author, fields=[:age])       
+```
+"""
 function update!(mapper::DBMapper, elem::T; fields::Array{Symbol}=Symbol[]) where T<:Model
     check_valid_type(mapper, T)
     update!(mapper, mapper.pool.dbtype, elem; fields=fields)
@@ -380,7 +411,18 @@ end
 """
     function select_one(mapper::DBMapper, T::Type{<:Model}; kwargs...)
 
-Select one element of type
+Select one element from the database
+
+# Arguments
+- `mapper::DBMapper`: The database mapper
+- `T::DataType`: Datatype of a registered model we want to select
+- `kwargs`: fields we want to search for. The param pk cand be used as generic way 
+to identify the primary key of the struct
+
+```
+struct Author <: Model ... end
+select_one(mapper, Author, name="Borges")       
+```
 """
 function select_one(mapper::DBMapper, T::Type{<:Model}; kwargs...)
     check_valid_type(mapper, T)
@@ -393,8 +435,13 @@ end
 """
     clean_table!(mapper::DBMapper, T::Type{<:Model})
 
-Remove all elements of the type T but keep, in cases when possible the structure
-where those elements are stored (tables in relational case)
+Remove all elements of the type T.
+   
+# Arguments
+- `mapper::DBMapper`: The database mapper
+- `T::Type{<:Model}`: Datatype of a registered model 
+
+In cases when possible the structure where those elements are stored (tables in relational case)
 """
 function clean_table!(mapper::DBMapper, T::Type{<:Model})
     check_valid_type(mapper, T)
@@ -407,7 +454,13 @@ end
 """
     function drop_table!(mapper::DBMapper, T::DataType)
 
-Eliminates the Struct data from the DB
+Eliminates (when possible) the struct data from the DB
+
+# Arguments
+- `mapper::DBMapper`: The database mapper
+- `T::Type{<:Model}`: Datatype of a registered model 
+
+
 """
 function drop_table!(mapper::DBMapper, T::DataType)
     check_valid_type(mapper, T)
@@ -419,13 +472,22 @@ end
 
 
 """
-    function exists(mapper::DBMapper, T::DataType; kwargs...)
+function exists(mapper::DBMapper, T::Type{T}; kwargs...) where T <: Model
 
-Return wether the element exists.
-The param pk cand be used as generic way to identify the primary key
-of the struct
+Return wether the element exists in the database
+
+# Arguments
+- `mapper::DBMapper`: The database mapper
+- `T::DataType`: Datatype of a registered model we want to know their existence
+- `kwargs`: fields we want to search for existence. The param pk cand be used as generic way 
+to identify the primary key of the struct
+
+```
+struct Author <: Model ... end
+exists(mapper, Author, name="some name", age=30)
+```
 """
-function exists(mapper::DBMapper, T::Type{<:Model}; kwargs...) :: Bool
+function exists(mapper::DBMapper, ::Type{T}; kwargs...) where T <: Model
     check_valid_type(mapper, T)
     params = Dict(kwargs...)
     if haskey(params, :pk)
@@ -434,6 +496,20 @@ function exists(mapper::DBMapper, T::Type{<:Model}; kwargs...) :: Bool
     end
     exists(mapper, mapper.pool.dbtype, T; params...)
 end
+"""
+    function exists(mapper::DBMapper, elem::T) where T<:Model
+
+Return wether the element exists in the database
+
+# Arguments
+- `mapper::DBMapper`: The database mapper
+- `elem<:Model`: Element to determine its existence
+
+```
+struct Author <: Model ... end
+exists(mapper, Author(name="some name", age=30))
+```
+"""
 function exists(mapper::DBMapper, elem::T) where T<:Model
     check_valid_type(mapper, T)
     return exists(mapper, T; pk=getid(elem, mapper))
@@ -443,17 +519,49 @@ function exists(mapper::DBMapper, dbtype, T::Type{<:Model}; kwargs...)
 end
 
 """
-    function delete_one!(mapper::DBMapper, T::Type{<:Model}; kwargs...)
+    function delete!(mapper::DBMapper, T::Type{<:Model}; kwargs...)
 
-Select one element of type
+Remove elements from the database
+
+# Arguments
+- `mapper::DBMapper`: The database mapper
+- `T::DataType`: Datatype of a registered model we want to delete
+- `kwargs`: fields we want to search for existence.
+
+```
+struct Author <: Model ... end
+delete!(mapper, Author, name="some name", age=30)
+```
 """
 function Base.delete!(mapper::DBMapper, T::Type{<:Model}; kwargs...)
     check_valid_type(mapper, T)
-    return delete!(mapper, mapper.pool.dbtype, T; kwargs...)
+    check_valid_type(mapper, T)
+    params = Dict(kwargs...)
+    if haskey(params, :pk)
+        params[idfield(mapper, T)] = params[:pk]
+        pop!(params, :pk)
+    end
+    return delete!(mapper, mapper.pool.dbtype, T; params...)
 end
 function Base.delete!(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...)
     return delete!(mapper, database_kind(dbtype), T; kwargs...)
 end
+"""
+    function delete!(mapper::DBMapper, T::Type{<:Model}; kwargs...)
+
+Remove elements from the database
+
+# Arguments
+- `mapper::DBMapper`: The database mapper
+- `elem<:Model`: Element to delete
+
+The element needs a valid identifier.
+
+```
+struct Author <: Model ... end
+delete!(mapper, Author(id=valid_id, name="some name", age=30))
+```
+"""
 function Base.delete!(mapper::DBMapper, elem::T) where T<:Model
     check_valid_type(mapper, T)
     return delete!(mapper, T; pk=getid(elem, mapper))
@@ -461,6 +569,18 @@ end
 
 """
     select_all(mapper::DBMapper, T::Type{<:Model}; kwargs...)
+
+Select all the elements that meet a criteria 
+
+# Arguments
+- `mapper::DBMapper`: The database mapper
+- `T::DataType`: Datatype of a registered model we want to search for
+- `kwargs`: criteria we want to search
+
+```
+struct Author <: Model ... end
+select_all(mapper, Author, age=30)
+```
 """
 function select_all(mapper::DBMapper, T::Type{<:Model}; kwargs...)
     check_valid_type(mapper, T)
