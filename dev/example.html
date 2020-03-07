@@ -45,7 +45,7 @@ insert!(mapper, author)
 @test !isnothing(getid(author, mapper))
 println(author)</code></pre><pre><code class="language-none">┌ Info: INSERT INTO author (age,date,name)
 └ VALUES (?,?,?)
-Main.ex-code_1.Author(DBId{Integer}(1), &quot;pirulo&quot;, 50, 2020-03-05T09:27:15.515)</code></pre><pre><code class="language-julia">id = getid(author, mapper)
+Main.ex-code_1.Author(DBId{Integer}(1), &quot;pirulo&quot;, 50, 2020-03-07T12:09:25.79)</code></pre><pre><code class="language-julia">id = getid(author, mapper)
 a = select_one(mapper, Author, id=999)
 println(a)</code></pre><pre><code class="language-none">┌ Info: SELECT age, date, id, name
 │ FROM author
@@ -56,7 +56,7 @@ println(a)</code></pre><pre><code class="language-none">┌ Info: SELECT age, da
 │ FROM author
 │ WHERE id=?
 └  LIMIT 1
-Main.ex-code_1.Author(DBId{Integer}(1), &quot;pirulo&quot;, 50, 2020-03-05T09:27:15.515)</code></pre><h2 id="Existence-1"><a class="docs-heading-anchor" href="#Existence-1">Existence</a><a class="docs-heading-anchor-permalink" href="#Existence-1" title="Permalink"></a></h2><pre><code class="language-julia">author = Author(name=&quot;Author 1&quot;, age=2)
+Main.ex-code_1.Author(DBId{Integer}(1), &quot;pirulo&quot;, 50, 2020-03-07T12:09:25.79)</code></pre><h2 id="Existence-1"><a class="docs-heading-anchor" href="#Existence-1">Existence</a><a class="docs-heading-anchor-permalink" href="#Existence-1" title="Permalink"></a></h2><pre><code class="language-julia">author = Author(name=&quot;Author 1&quot;, age=2)
 insert!(mapper, author)
 
 author = Author(name=&quot;Author 2&quot;, age=3)
@@ -117,7 +117,7 @@ println(a)</code></pre><pre><code class="language-none">┌ Info: UPDATE author
 │ FROM author
 │ WHERE id=?
 └  LIMIT 1
-Main.ex-code_1.Author(DBId{Integer}(1), &quot;otro_pirulo&quot;, 50, 2020-03-05T09:27:15.515)</code></pre><p>If <code>fields</code> is omitted all the fields are updated</p><pre><code class="language-julia">a.name = &quot;some_other_name&quot;
+Main.ex-code_1.Author(DBId{Integer}(1), &quot;otro_pirulo&quot;, 50, 2020-03-07T12:09:25.79)</code></pre><p>If <code>fields</code> is omitted all the fields are updated</p><pre><code class="language-julia">a.name = &quot;some_other_name&quot;
 a.age = 5
 update!(mapper, a)
 a = select_one(mapper, Author, id=id)
@@ -129,9 +129,9 @@ println(a)</code></pre><pre><code class="language-none">┌ Info: UPDATE author
 │ FROM author
 │ WHERE id=?
 └  LIMIT 1
-Main.ex-code_1.Author(DBId{Integer}(1), &quot;some_other_name&quot;, 5, 2020-03-05T09:27:15.515)</code></pre><h1 id="Insert-element-with-foreign-key-and-dict-1"><a class="docs-heading-anchor" href="#Insert-element-with-foreign-key-and-dict-1">Insert element with foreign key and dict</a><a class="docs-heading-anchor-permalink" href="#Insert-element-with-foreign-key-and-dict-1" title="Permalink"></a></h1><pre><code class="language-julia">book = Book(id=&quot;super_string_id&quot;, author=author,
+Main.ex-code_1.Author(DBId{Integer}(1), &quot;some_other_name&quot;, 5, 2020-03-07T12:09:25.79)</code></pre><h1 id="Insert-element-with-foreign-key-and-dict-1"><a class="docs-heading-anchor" href="#Insert-element-with-foreign-key-and-dict-1">Insert element with foreign key and dict</a><a class="docs-heading-anchor-permalink" href="#Insert-element-with-foreign-key-and-dict-1" title="Permalink"></a></h1><pre><code class="language-julia">book = Book(id=&quot;super_string_id&quot;, author=author,
             data=Dict{String, Integer}(&quot;some_data&quot;=&gt;5))
-insert!(mapper, book)</code></pre><pre><code class="language-none">Main.ex-code_1.Book(DBId{String}(&quot;super_string_id&quot;), ForeignKey{Main.ex-code_1.Author}(Main.ex-code_1.Author(DBId{Integer}(4), &quot;Author 3&quot;, 4, 2020-03-05T09:27:17.767), true), Dict{String,Integer}(&quot;some_data&quot; =&gt; 5))</code></pre><pre><code class="language-julia">book = select_one(mapper, Book, id=&quot;bbb&quot;)
+insert!(mapper, book)</code></pre><pre><code class="language-none">Main.ex-code_1.Book(DBId{String}(&quot;super_string_id&quot;), ForeignKey{Main.ex-code_1.Author}(Main.ex-code_1.Author(DBId{Integer}(4), &quot;Author 3&quot;, 4, 2020-03-07T12:09:29.336), true), Dict{String,Integer}(&quot;some_data&quot; =&gt; 5))</code></pre><pre><code class="language-julia">book = select_one(mapper, Book, id=&quot;bbb&quot;)
 println(book)</code></pre><pre><code class="language-none">┌ Info: SELECT author_id, data, id
 │ FROM book
 │ WHERE id=?
@@ -141,7 +141,7 @@ println(book)</code></pre><pre><code class="language-none">┌ Info: SELECT auth
 │ FROM book
 │ WHERE id=?
 └  LIMIT 1
-Main.ex-code_1.Book(DBId{String}(&quot;super_string_id&quot;), ForeignKey{Main.ex-code_1.Author}(Main.ex-code_1.Author(DBId{Integer}(4), &quot;&quot;, 0, 2020-03-05T09:27:20.041), false), Dict{String,Integer}(&quot;some_data&quot; =&gt; 5))</code></pre><h1 id="Delete-1"><a class="docs-heading-anchor" href="#Delete-1">Delete</a><a class="docs-heading-anchor-permalink" href="#Delete-1" title="Permalink"></a></h1><pre><code class="language-julia">book = select_one(mapper, Book, id=&quot;super_string_id&quot;)
+Main.ex-code_1.Book(DBId{String}(&quot;super_string_id&quot;), ForeignKey{Main.ex-code_1.Author}(Main.ex-code_1.Author(DBId{Integer}(4), &quot;&quot;, 0, 2020-03-07T12:09:31.424), false), Dict{String,Integer}(&quot;some_data&quot; =&gt; 5))</code></pre><h1 id="Delete-1"><a class="docs-heading-anchor" href="#Delete-1">Delete</a><a class="docs-heading-anchor-permalink" href="#Delete-1" title="Permalink"></a></h1><pre><code class="language-julia">book = select_one(mapper, Book, id=&quot;super_string_id&quot;)
 delete!(mapper, book)</code></pre><pre><code class="language-none">┌ Info: SELECT author_id, data, id
 │ FROM book
 │ WHERE id=?
@@ -149,4 +149,4 @@ delete!(mapper, book)</code></pre><pre><code class="language-none">┌ Info: SEL
 ┌ Info: DELETE FROM book
 └ WHERE id=?</code></pre><h1 id="Removing-tables-1"><a class="docs-heading-anchor" href="#Removing-tables-1">Removing tables</a><a class="docs-heading-anchor-permalink" href="#Removing-tables-1" title="Permalink"></a></h1><pre><code class="language-julia">drop_table!(mapper, Author)
 drop_table!(mapper, Book)</code></pre><pre><code class="language-none">[ Info: DROP TABLE author
-[ Info: DROP TABLE book</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="api.html">« Api</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 5 March 2020 09:27">Thursday 5 March 2020</span>. Using Julia version 1.3.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+[ Info: DROP TABLE book</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="api.html">« Api</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Saturday 7 March 2020 12:09">Saturday 7 March 2020</span>. Using Julia version 1.3.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
