@@ -18,13 +18,13 @@ struct SimplePool <: ConnectionPool
     creator::Function
     dbtype::DataType
     function SimplePool(creator::Function)
-        conn = creator()
+        conn = Base.invokelatest(creator)
         dbtype = typeof(conn)
         close!(conn)
         return new(creator, dbtype)
     end
 end
-get_connection(r::SimplePool) = r.creator()
+get_connection(r::SimplePool) = Base.invokelatest(r.creator)
 release_connection(r::SimplePool, conn) =  close!(conn)
 
 
