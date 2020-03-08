@@ -1,10 +1,5 @@
-
-
-
-using .LibPQ
+using Dates
 import DBInterface: prepare, execute, lastrowid, close!, execute
-
-
 const LIBPQ_TYPE_MAPPINGS = Dict{Union{Type, Symbol}, Symbol}( # Julia / Postgres
   Char => :CHARACTER,
   String => :VARCHAR,

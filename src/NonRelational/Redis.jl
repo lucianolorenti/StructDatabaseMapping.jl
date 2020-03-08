@@ -1,5 +1,3 @@
-
-
 database_kind(c::Type{Redis.RedisConnection}) = NonRelational
 
 redis_id(::Type{T}, id) where T<:Model = "$T:$id"
