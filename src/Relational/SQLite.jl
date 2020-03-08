@@ -1,7 +1,12 @@
+module SQLiteConnection
 
+import StructDatabaseMapping: Relational, Table, database_column_type, clean_table_query,
+                              database_kind, close!, close!
 
-using .SQLite
-using .DBInterface
+using StructDatabaseMapping.SQLite
+using StructDatabaseMapping.DBInterface
+
+using Dates
 
 const SQLITE_TYPE_MAPPINGS = Dict{Union{Type, Symbol}, Symbol}( # Julia => SQLite
   Char => :CHARACTER,
@@ -27,3 +32,4 @@ function clean_table_query(table::Table, dbtype::Type{SQLite.DB})
 end
 database_kind(c::Type{SQLite.DB}) = Relational
 close!(db::SQLite.DB) = DBInterface.close!(db)
+end

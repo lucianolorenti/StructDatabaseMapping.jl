@@ -10,6 +10,7 @@ export DBMapper, register!, create_table, DBId,
 using Dates
 using Requires
 using JSON
+using DBInterface
 
 import Base.insert!
 
@@ -19,7 +20,7 @@ abstract type Model end
 
 
 include("Connection/Pool.jl")
-
+   
 
 """
     mutable struct Field
@@ -650,22 +651,20 @@ unmarshal(::Type{DBId{T}}, x::String) where T<:AbstractString = x
 
 
 
-
+include(joinpath(@__DIR__, "Relational", "Relational.jl"))
+include(joinpath(@__DIR__, "NonRelational", "NonRelational.jl")) 
 function __init__()
-
-    @require DBInterface="a10d1c49-ce27-4219-8d33-6db1a4562965" begin
-        include(joinpath(@__DIR__, "Relational", "Relational.jl"))
-    end
     @require SQLite="0aa819cd-b072-5ff4-a722-6bc24af294d9" begin
         include(joinpath(@__DIR__, "Relational", "SQLite.jl"))
-
+        using StructDatabaseMapping.SQLiteConnection
     end
     @require LibPQ="194296ae-ab2e-5f79-8cd4-7183a0a5a0d1" begin
         include(joinpath(@__DIR__,  "Relational", "PostgreSQL.jl"))
+        using StructDatabaseMapping.PostgreSQLConnection
     end
     @require Redis="0cf705f9-a9e2-50d1-a699-2b372a39b750" begin
-        include(joinpath(@__DIR__, "NonRelational", "Redis.jl"))
-        include(joinpath(@__DIR__, "NonRelational", "NonRelational.jl"))
+        include(joinpath(@__DIR__, "NonRelational", "Redis.jl"))        
+        using StructDatabaseMapping.RedisConnection
     end
 
 end

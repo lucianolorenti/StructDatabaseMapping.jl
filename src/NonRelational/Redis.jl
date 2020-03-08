@@ -1,3 +1,12 @@
+module RedisConnection
+using StructDatabaseMapping.Redis
+
+import StructDatabaseMapping:  Model, DBMapper, insert!, select_one, clean_table!,
+                              drop_table!, update!, exists, select_all, database_kind,
+                              NonRelational, get_connection, idtype, generate_id, 
+                              setid!, getid, marshal, release_connection, unmarshal,
+                              idfield
+
 database_kind(c::Type{Redis.RedisConnection}) = NonRelational
 
 redis_id(::Type{T}, id) where T<:Model = "$T:$id"
@@ -164,4 +173,5 @@ function select_all(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Ty
     end
     ret = iterate_all(mapper, dbtype, T, params, found)
     return all_elems
+end
 end
