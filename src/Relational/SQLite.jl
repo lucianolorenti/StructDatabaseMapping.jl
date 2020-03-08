@@ -1,7 +1,7 @@
-
-
 using .SQLite
 using .DBInterface
+
+using Dates
 
 const SQLITE_TYPE_MAPPINGS = Dict{Union{Type, Symbol}, Symbol}( # Julia => SQLite
   Char => :CHARACTER,
@@ -25,5 +25,6 @@ end
 function clean_table_query(table::Table, dbtype::Type{SQLite.DB}) 
     return "DELETE FROM $(table.name)"
 end
+
 database_kind(c::Type{SQLite.DB}) = Relational
 close!(db::SQLite.DB) = DBInterface.close!(db)

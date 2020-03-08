@@ -1,4 +1,10 @@
 
+
+
+using .LibPQ
+import DBInterface: prepare, execute, lastrowid, close!, execute
+
+
 const LIBPQ_TYPE_MAPPINGS = Dict{Union{Type, Symbol}, Symbol}( # Julia / Postgres
   Char => :CHARACTER,
   String => :VARCHAR,
@@ -38,14 +44,14 @@ close!(db::LibPQ.Connection) = DBInterface.close!(db)
 escape_value(dbtype::Type{LibPQ.Connection}, x::AbstractString) = "'$x'"
 
 
-DBInterface.close!(db::LibPQ.Connection) = LibPQ.close(db)
-DBInterface.execute(db::LibPQ.Connection, sql::AbstractString) = LibPQ.execute(db, sql)
+close!(db::LibPQ.Connection) = LibPQ.close(db)
+execute(db::LibPQ.Connection, sql::AbstractString) = LibPQ.execute(db, sql)
 
 struct LibPQStatement
     sql::AbstractString
     params
 end
-function DBInterface.prepare(db::LibPQ.Connection, sql::AbstractString) 
+function prepare(db::LibPQ.Connection, sql::AbstractString) 
     value_holders = [position[1] for position in findall("?", sql)]
     i = 1
     s = ""
@@ -59,6 +65,6 @@ function DBInterface.prepare(db::LibPQ.Connection, sql::AbstractString)
     s *= sql[i:end]
     return LibPQ.prepare(db, s)
 end
-DBInterface.execute(stmt::LibPQ.Statement, params::Array) = LibPQ.execute(stmt, params)
-DBInterface.lastrowid(r::LibPQ.Result) =  r[1,1]
+execute(stmt::LibPQ.Statement, params::Array) = LibPQ.execute(stmt, params)
+lastrowid(r::LibPQ.Result) =  r[1,1]
 Base.getindex(row::LibPQ.Row, symbol::Symbol) = getproperty(row, symbol)

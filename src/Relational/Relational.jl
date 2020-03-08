@@ -10,6 +10,7 @@ function unmarshal(mapper::DBMapper, ::Type{Relational}, dest::Type{ForeignKey{T
     return ForeignKey{T}(data=T(;params...), loaded=false)
 end
 
+database_column_type(dbtype, d::Union{Symbol, Type}) = raise("Not implemented")
 
 primary_key_type(dbtype::DataType, x) = x
 

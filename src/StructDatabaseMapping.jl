@@ -5,11 +5,12 @@ export select_one, update!, delete!, drop_table!, clean_table!,
 export DBMapper, register!, create_table, DBId,
        Nullable, analyze_relations, ForeignKey,  Model, getid, Foreign,
        Cascade, SetNull, configure_relation,
-       Restrict
+       Restrict, database_kind
 
 using Dates
 using Requires
 using JSON
+using DBInterface
 
 import Base.insert!
 
@@ -19,7 +20,7 @@ abstract type Model end
 
 
 include("Connection/Pool.jl")
-
+   
 
 """
     mutable struct Field
@@ -599,7 +600,7 @@ The parameter should be the type of the connection of the concrete
 database being used.
 Every concrete database implementation must override this function.
 """
-database_kind(c::Type{T}) where T = throw("Unknow database kind")
+databasea_kind(c::Type{T}) where T = throw("Unknow database kind")
 
 
 
@@ -650,22 +651,26 @@ unmarshal(::Type{DBId{T}}, x::String) where T<:AbstractString = x
 
 
 
+include(joinpath(@__DIR__, "Relational", "Relational.jl"))
+include(joinpath(@__DIR__, "NonRelational", "NonRelational.jl")) 
+
+included_sources = []
+function include_once(path::AbstractString)
+    if path ∉ included_sources
+        push!(included_sources, path)
+        include(path)
+    end
+end
 
 function __init__()
-
-    @require DBInterface="a10d1c49-ce27-4219-8d33-6db1a4562965" begin
-        include(joinpath(@__DIR__, "Relational", "Relational.jl"))
-    end
     @require SQLite="0aa819cd-b072-5ff4-a722-6bc24af294d9" begin
-        include(joinpath(@__DIR__, "Relational", "SQLite.jl"))
-
+        include_once(joinpath(@__DIR__, "Relational", "SQLite.jl"))
     end
     @require LibPQ="194296ae-ab2e-5f79-8cd4-7183a0a5a0d1" begin
-        include(joinpath(@__DIR__,  "Relational", "PostgreSQL.jl"))
+        include_once(joinpath(@__DIR__,  "Relational", "PostgreSQL.jl"))
     end
     @require Redis="0cf705f9-a9e2-50d1-a699-2b372a39b750" begin
-        include(joinpath(@__DIR__, "NonRelational", "Redis.jl"))
-        include(joinpath(@__DIR__, "NonRelational", "NonRelational.jl"))
+        include_once(joinpath(@__DIR__, "NonRelational", "Redis.jl"))        
     end
 
 end
