@@ -1,7 +1,7 @@
 name = "StructDatabaseMapping"
 uuid = "66daddfc-c305-4fd9-8f84-fb59daccc546"
 authors = ["Luciano Rolando Lorenti <lucianolorenti@gmail.com>"]
-version = "0.3.1"
+version = "0.3.2"
 
 [deps]
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"

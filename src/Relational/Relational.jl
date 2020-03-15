@@ -166,7 +166,9 @@ function totuple(mapper::DBMapper, table::Table, dbtype::DataType, db_results) :
         db_data = Dict(field=>getindex(row, field)
                       for field in propertynames(row))
         for field in fieldlist(table)
-            push!(r, field.struct_field=>unmarshal(mapper, dbtype, field.type, db_data[field.name]))
+            if haskey(db_data, field.name)
+                push!(r, field.struct_field=>unmarshal(mapper, dbtype, field.type, db_data[field.name]))
+            end
         end
         push!(results, r)
     end
@@ -177,26 +179,32 @@ function totuple(results)
     [(;(prop=>getindex(row, prop) for prop in propertynames(row))...) for row in results]
 end
 
-function select_query(mapper::DBMapper, T::Type{<:Model}; select_one=true, kwargs...)
+function select_query(mapper::DBMapper, T::Type{<:Model}; select_one=true, fields::Array{Symbol}=Symbol[], kwargs...)
     dbtype = mapper.pool.dbtype
     table = mapper.tables[T]
-    cnames = join(column_names(mapper, T), ", ")
+    if isempty(fields)
+        fields = column_names(mapper, T)
+    end
+    cnames = join(fields, ", ")
     conditions = join(["$field=?" for (field, value) in kwargs], " AND ")
     sql = """
     SELECT $cnames
     FROM $(table.name)
-    WHERE $(conditions)
     """
+    if !isempty(conditions)
+        sql *= """ 
+        WHERE $(conditions)"""
+    end
     if select_one
         sql *= " LIMIT 1"
     end
     return clean_sql(sql)
 end
 
-function select(mapper::DBMapper, T::Type{<:Model}; select_one=true, kwargs...)
+function select(mapper::DBMapper, T::Type{<:Model}; select_one=true, fields::Array{Symbol}=Symbol[], kwargs...)
     dbtype = mapper.pool.dbtype
     table = mapper.tables[T]
-    sql = select_query(mapper, T; select_one=select_one, kwargs...)
+    sql = select_query(mapper, T; select_one=select_one, fields=fields, kwargs...)
     values = [v[2] for v in kwargs]
     @info sql
     conn = get_connection(mapper.pool)
@@ -215,8 +223,8 @@ function select_one(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwar
     end
 end
 
-function select_all(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; kwargs...) :: Array{T}
-    result = select(mapper, T; select_one=false, kwargs...)
+function select_all(mapper::DBMapper, ::Type{Relational}, T::Type{<:Model}; fields::Array{Symbol} =Symbol[], kwargs...) :: Array{T}
+    result = select(mapper, T; select_one=false, fields=fields, kwargs...)
     if isempty(result)
         return T[]
     else

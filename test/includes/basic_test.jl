@@ -2,13 +2,15 @@ mutable struct Author <: Model
     id::DBId{Integer}
     name::String
     age::Integer
+    country::String
     date::DateTime
 end
 function Author(;id::Union{Integer, Nothing} = nothing,
                 name::String="",
                 age::Integer=0,
+                country::String="",
                 date::DateTime=now())
-    return Author(id, name, age, date)
+    return Author(id, name, age, country, date)
 end
 mutable struct Book <: Model
     id::DBId{String}
@@ -62,18 +64,21 @@ function _test_basic_functionalities(creator)
     create_table(mapper, Author)
     create_table(mapper, Book)
 
-    author = Author(name="pirulo", age=50)
+    author = Author(name="pirulo", age=50, country="Argentina")
     insert!(mapper, author)
     @test !isnothing(author.id.x)
     id = author.id.x
 
-    author = Author(name="Author 1", age=3)
+    author = Author(name="Author 1", age=3, country="Argentina")
     insert!(mapper, author)
 
-    author = Author(name="Author 2", age=3)
+    author = Author(name="Author 2", age=3, country="Brasil")
     insert!(mapper, author)
 
-    author = Author(name="Author 3", age=3)
+    author = Author(name="Author 5", age=25, country="Italia")
+    insert!(mapper, author)
+
+    author = Author(name="Author 3", age=3, country="Uruguay")
     insert!(mapper, author)
 
     @test StructDatabaseMapping.exists(mapper, Author, name="Enrique Banch") == false
@@ -87,7 +92,15 @@ function _test_basic_functionalities(creator)
 
 
     authors = select_all(mapper, Author, age=3)
+    @test isa(authors[1], Author)
     @test length(authors) == 3
+
+    authors = select_all(mapper, Author)
+    @test length(authors) == 5
+
+    authors = select_all(mapper, Author, age=3, fields=[:name, :country])
+    @test Set([author.country for author in authors]) == Set(["Brasil", "Argentina", "Uruguay"])
+
 
     a = select_one(mapper, Author, id=999)
     @test isnothing(a)

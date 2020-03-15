@@ -34,6 +34,7 @@ function test_create_tables()
     @test (StructDatabaseMapping.create_table_query(mapper, Author)
     == "CREATE TABLE IF NOT EXISTS author (" *
        "age INTEGER NOT NULL, " *
+       "country VARCHAR NOT NULL, " *
        "date TIMESTAMP NOT NULL, " *
        "id SERIAL PRIMARY KEY, " *
        "name VARCHAR NOT NULL)")

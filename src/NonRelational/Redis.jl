@@ -79,16 +79,21 @@ function select_by_key_and_params(mapper::DBMapper, dbtype::Type{Redis.RedisConn
     return unmarshal(mapper, T, Dict(zip(params_key, elem_values)); partial=true)
 end
 
-function iterate_all(mapper::DBMapper,  dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}, params, f)
+function iterate_all(mapper::DBMapper,  dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}, 
+                    conditions, apply_function, fields::Array{Symbol}=Symbol[])
     conn = get_connection(mapper.pool)
     cursor = -1
-    params_key = collect(keys(params))
+    conditions_fields = collect(keys(conditions))
+    if isempty(fields)
+        fields = column_names(mapper, T)
+    end
+    fields_to_obtain = union(conditions_fields, fields)
     while cursor != 0
         (cursor, results) = Redis.scan(conn, cursor == -1 ? 0 : cursor, "match", redis_wildcard(T))
-        for elem_key in results
-            elem_values = Redis.hmget(conn, elem_key, params_key...)
-            elem = unmarshal(mapper, T, Dict(zip(params_key, elem_values)); partial=true)
-            ret = f(elem_key, elem, params, params_key)        
+        for elem_key in results            
+            elem_values = Redis.hmget(conn, elem_key, fields_to_obtain...)
+            elem = unmarshal(mapper, T, Dict{Symbol, Any}(zip(fields_to_obtain, elem_values)); partial=true)
+            ret = apply_function(elem_key, elem, conditions, conditions_fields)        
             if (typeof(ret) <: Bool && ret == true) || (!(typeof(ret) <: Bool) && ret !== nothing)
                 release_connection(mapper.pool, conn)
                 return ret
@@ -122,8 +127,8 @@ function exists(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<
     end
     return false
 end
-
-function Base.delete!(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
+import Base:delete!
+function delete!(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
     (id, params) = extract_id_from_kwargs(mapper, T; kwargs...)
     if id !== nothing
         if length(params) == 0
@@ -153,15 +158,19 @@ function Base.delete!(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::
     end
 end
 
-function select_all(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}; kwargs...)
-    params = Dict(kwargs...)
+function select_all(mapper::DBMapper, dbtype::Type{Redis.RedisConnection}, T::Type{<:Model}; fields::Array{Symbol}=[], kwargs...) ::Array{T}
+    conditions = Dict(kwargs...)
     all_elems = []
-    found = (elem_key, elem, params, params_key)->begin
+    found_function = (elem_key, elem, params, params_key)->begin
         if all([params[k] == elem[k] for k in params_key])
             push!(all_elems, elem)
         end
         return nothing
     end
-    ret = iterate_all(mapper, dbtype, T, params, found)
-    return all_elems
+    ret = iterate_all(mapper, dbtype, T, conditions, found_function, fields)
+    if isempty(all_elems)
+        return nothing
+    else
+        return [T(;unmarshal(mapper, T, elem, partial=!isempty(fields))...) for elem in all_elems]
+    end
 end

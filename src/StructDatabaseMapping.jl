@@ -569,7 +569,7 @@ function Base.delete!(mapper::DBMapper, elem::T) where T<:Model
 end
 
 """
-    select_all(mapper::DBMapper, T::Type{<:Model}; kwargs...)
+    select_all(mapper::DBMapper, T::Type{<:Model}; ; fields::Array{Symbol}=[], kwargs...)
 
 Select all the elements that meet a criteria 
 
@@ -583,12 +583,12 @@ struct Author <: Model ... end
 select_all(mapper, Author, age=30)
 ```
 """
-function select_all(mapper::DBMapper, T::Type{<:Model}; kwargs...)
+function select_all(mapper::DBMapper, T::Type{<:Model};  fields::Array{Symbol}=Symbol[], kwargs...)
     check_valid_type(mapper, T)
-    return select_all(mapper, mapper.pool.dbtype, T; kwargs...)
+    return select_all(mapper, mapper.pool.dbtype, T; fields=fields, kwargs...)
 end
-function select_all(mapper::DBMapper, dbtype::DataType, T::Type{<:Model}; kwargs...)
-    return select_all(mapper, database_kind(dbtype), T; kwargs...)
+function select_all(mapper::DBMapper, dbtype::DataType, T::Type{<:Model};  fields::Array{Symbol}=Symbol[], kwargs...)
+    return select_all(mapper, database_kind(dbtype), T; fields=fields, kwargs...)
 end
 
 """
