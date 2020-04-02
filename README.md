@@ -14,3 +14,46 @@
 * Possibly every relational DB that supports the DBInterface
 
 
+# Simple example
+[For a better example see the docs](https://lucianolorenti.github.io/StructDatabaseMapping.jl/dev/example.html)
+```julia
+using StructDatabaseMapping
+using Dates
+using SQLite
+using Test
+
+mutable struct Author <: Model
+    id::DBId{Integer}
+    name::String
+    age::Integer
+    date::DateTime
+end
+function Author(;id::Union{Integer, Nothing} = nothing,
+                name::String="",
+                age::Integer=0,
+                date::DateTime=now())
+    return Author(id, name, age, date)
+end
+mutable struct Book <: Model
+    id::DBId{String}
+    author::ForeignKey{Author}
+    data::Dict{String, Integer}
+end
+function Book(;id::Union{String, Nothing}=nothing,
+               author::Foreign{Author}=Author(),
+               data::Dict{String, Integer}=Dict())
+    return Book(id, author, data)
+end
+
+DB_FILE = "test_db"
+using SQLite
+creator = ()->SQLite.DB(DB_FILE)
+mapper = DBMapper(creator)
+
+register!(mapper, Author)
+register!(mapper, Book)
+
+configure_relation(mapper, Book, :author, on_delete=Cascade())
+author = Author(name="pirulo", age=50)
+insert!(mapper, author)
+```
