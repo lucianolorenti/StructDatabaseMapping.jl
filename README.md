@@ -54,6 +54,8 @@ register!(mapper, Author)
 register!(mapper, Book)
 
 configure_relation(mapper, Book, :author, on_delete=Cascade())
+create_table(mapper, Author)
+create_table(mapper, Book)
 author = Author(name="pirulo", age=50)
 insert!(mapper, author)
 ```
