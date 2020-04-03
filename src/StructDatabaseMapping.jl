@@ -89,9 +89,14 @@ function idfield(t::Table)  :: Symbol
     return t.primary_key.field[1].name
 end
 isprimarykey(f::Field, t::Table) = t.primary_key.field[1] === f
-function fieldlist(t::Table)
+function fieldlist(t::Table) :: Array{Field}
     return sort(collect(values(t.fields)), by=x->x.name)
 end
+
+function foreignfields(t::Table) :: Array{Field}
+    return sort(collect(keys(t.relations)))
+end
+
 
 mutable struct DBMapper
     tables::Dict{DataType, Table}
@@ -257,7 +262,9 @@ function register!(mapper::DBMapper, d::Type{T}; table_name::String="") where T 
         end
         fields[field_name] = db_field
     end
-
+    if primary_key === nothing
+        throw("The struct $(T) does not have a primary key. Use the type DBId")
+    end
     table = Table(table_name,
                   T,
                   fields,
@@ -427,7 +434,12 @@ select_one(mapper, Author, name="Borges")
 """
 function select_one(mapper::DBMapper, T::Type{<:Model}; kwargs...)
     check_valid_type(mapper, T)
-    return select_one(mapper, mapper.pool.dbtype, T; kwargs...)
+    params = Dict(kwargs...)
+    if haskey(params, :pk)
+        params[idfield(mapper, T)] = params[:pk]
+        pop!(params, :pk)
+    end
+    return select_one(mapper, mapper.pool.dbtype, T; params...)
 end
 function select_one(mapper::DBMapper, dbtype, T::Type{<:Model}; kwargs...)
     return select_one(mapper, database_kind(dbtype), T; kwargs...)
